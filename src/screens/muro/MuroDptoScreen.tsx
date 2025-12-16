@@ -15,6 +15,7 @@ import {
 import { MaterialIcons } from "@expo/vector-icons";
 import { COLORS, FONT_SIZES } from "../../types/index";
 import { useUser } from "../../context/UserContext";
+import { cargarDepartamentos, Departamento } from "../../api/departamentosService";
 import {
   obtenerMuroDepartamento,
   crearPublicacion,
@@ -45,15 +46,51 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [postEditando, setPostEditando] = useState<Publicacion | null>(null);
   const [textoEditado, setTextoEditado] = useState("");
+  
+  // Para administradores
+  const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
+  const [deptoSeleccionado, setDeptoSeleccionado] = useState<string | null>(null);
+  const [modalDeptosVisible, setModalDeptosVisible] = useState(false);
 
-  const puedePublicar = user?.rol === "Administrador" || user?.rol === "Jefe";
+  const esAdmin = user?.rol === "Administrador";
+  const esJefe = user?.rol === "Jefe";
+  const puedePublicar = esAdmin || esJefe;
+
+  // Determinar qué departamento mostrar
+  const departamentoActual = esAdmin 
+    ? deptoSeleccionado 
+    : user?.nombreDepartamento;
+
+  // Cargar departamentos si es admin
+  useEffect(() => {
+    if (esAdmin && user?.empresaId) {
+      cargarDepartamentos(user.empresaId)
+        .then((deptos) => {
+          setDepartamentos(deptos);
+          // Si no hay departamento seleccionado y hay departamentos, seleccionar el primero
+          if (deptos.length > 0 && !deptoSeleccionado) {
+            setDeptoSeleccionado(deptos[0].nombre);
+          }
+        })
+        .catch(() => {
+          Alert.alert("Error", "No se pudieron cargar los departamentos");
+        });
+    }
+  }, [esAdmin, user?.empresaId]);
 
   const cargarMuro = async () => {
-    if (!user?.empresaId || !user?.nombreDepartamento) {
-      Alert.alert(
-        "Sin departamento",
-        "No tienes un departamento asignado. Contacta a tu administrador."
-      );
+    if (!user?.empresaId) {
+      Alert.alert("Error", "No tienes una empresa seleccionada");
+      return;
+    }
+
+    if (!departamentoActual) {
+      if (!esAdmin) {
+        Alert.alert(
+          "Sin departamento",
+          "No tienes un departamento asignado. Contacta a tu administrador."
+        );
+      }
       return;
     }
 
@@ -61,7 +98,7 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
       setLoading(true);
       const data = await obtenerMuroDepartamento(
         user.empresaId,
-        user.nombreDepartamento
+        departamentoActual
       );
       setPosts(data);
     } catch (error) {
@@ -73,11 +110,13 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
   };
 
   useEffect(() => {
-    cargarMuro();
-  }, [user?.empresaId, user?.nombreDepartamento]);
+    if (departamentoActual) {
+      cargarMuro();
+    }
+  }, [user?.empresaId, departamentoActual]);
 
   const crearPost = async () => {
-    if (!contenidoPost.trim() || !user?.empresaId || !user?.nombreDepartamento) {
+    if (!contenidoPost.trim() || !user?.empresaId || !departamentoActual) {
       Alert.alert("Error", "Escribe algo antes de publicar");
       return;
     }
@@ -87,8 +126,8 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
         contenido: contenidoPost.trim(),
         empresaId: user.empresaId,
         tipoMuro: "departamento",
-        departamentoId: user.idDepartamento,
-        nombreDepartamento: user.nombreDepartamento,
+        departamentoId: esAdmin ? undefined : user.idDepartamento,
+        nombreDepartamento: departamentoActual,
         creadaPor: user.uid,
         nombreUsuario: user.nombre,
         rolUsuario: user.rol || "Empleado",
@@ -96,7 +135,7 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
 
       setContenidoPost("");
       setModalVisible(false);
-      Alert.alert("Éxito", "Publicación agregada al muro de tu departamento");
+      Alert.alert("Éxito", "Publicación agregada al muro del departamento");
       cargarMuro();
     } catch (error) {
       console.error("Error creando publicación:", error);
@@ -105,7 +144,7 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
   };
 
   const puedeModificar = (post: Publicacion) => {
-    return post.creadaPor === user?.uid || user?.rol === "Administrador";
+    return post.creadaPor === user?.uid || esAdmin;
   };
 
   const handleEliminar = (postId: string) => {
@@ -159,7 +198,8 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
     try {
       await agregarReaccion(postId, user?.uid!, user?.nombre!, tipo);
       cargarMuro();
-    } catch {
+    } catch (error) {
+      console.error("Error en reacción:", error);
       Alert.alert("Error", "No se pudo agregar la reacción");
     }
   };
@@ -172,7 +212,13 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
     return post.reacciones?.find((r) => r.uid === user?.uid);
   };
 
-  if (!user?.nombreDepartamento) {
+  const cambiarDepartamento = (depto: Departamento) => {
+    setDeptoSeleccionado(depto.nombre);
+    setModalDeptosVisible(false);
+  };
+
+  // Vista para usuarios sin departamento (no admin)
+  if (!esAdmin && !user?.nombreDepartamento) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyContainer}>
@@ -187,21 +233,48 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
     );
   }
 
+  // Vista para admin sin departamentos creados
+  if (esAdmin && departamentos.length === 0) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.emptyContainer}>
+          <MaterialIcons name="folder-open" size={80} color={COLORS.textSecondary} />
+          <Text style={styles.emptyTitle}>No hay departamentos</Text>
+          <Text style={styles.emptyText}>
+            Aún no se han creado departamentos en esta empresa.{"\n"}
+            Ve a Gestión de Usuarios para crear uno.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor="#000" barStyle="light-content" />
 
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
+        <TouchableOpacity
+          style={styles.headerLeft}
+          onPress={() => esAdmin && setModalDeptosVisible(true)}
+          disabled={!esAdmin}
+        >
           <MaterialIcons name="business" size={24} color={COLORS.primary} />
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>Muro Departamental</Text>
-            <Text style={styles.headerSubtitle}>{user?.nombreDepartamento}</Text>
+            <View style={styles.deptoSelector}>
+              <Text style={styles.headerSubtitle}>
+                {departamentoActual || "Selecciona departamento"}
+              </Text>
+              {esAdmin && (
+                <MaterialIcons name="expand-more" size={18} color={COLORS.primary} />
+              )}
+            </View>
           </View>
-        </View>
+        </TouchableOpacity>
 
-        {puedePublicar && (
+        {puedePublicar && departamentoActual && (
           <TouchableOpacity
             style={styles.addButton}
             onPress={() => setModalVisible(true)}
@@ -319,6 +392,62 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
         }
       />
 
+      {/* Modal selector de departamentos (solo admin) */}
+      <Modal
+        visible={modalDeptosVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalDeptosVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Seleccionar Departamento</Text>
+            
+            <FlatList
+              data={departamentos}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.deptoItem,
+                    deptoSeleccionado === item.nombre && styles.deptoItemActive,
+                  ]}
+                  onPress={() => cambiarDepartamento(item)}
+                >
+                  <MaterialIcons
+                    name="folder"
+                    size={24}
+                    color={
+                      deptoSeleccionado === item.nombre
+                        ? COLORS.primary
+                        : COLORS.textSecondary
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.deptoItemText,
+                      deptoSeleccionado === item.nombre && styles.deptoItemTextActive,
+                    ]}
+                  >
+                    {item.nombre}
+                  </Text>
+                  {deptoSeleccionado === item.nombre && (
+                    <MaterialIcons name="check" size={24} color={COLORS.primary} />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setModalDeptosVisible(false)}
+            >
+              <Text style={styles.closeButtonText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Modal crear publicación */}
       <Modal
         visible={modalVisible}
@@ -330,7 +459,7 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
           <View style={styles.modalContainer}>
             <Text style={styles.modalTitle}>Nueva publicación</Text>
             <Text style={styles.modalSubtitle}>
-              Muro de {user?.nombreDepartamento}
+              Muro de {departamentoActual}
             </Text>
 
             <TextInput
@@ -418,6 +547,37 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
           </View>
         </View>
       </Modal>
+
+      {/* Footer de navegación */}
+      <View style={styles.footerContainer}>
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => navigation.navigate("Home")}
+        >
+          <MaterialIcons name="home" size={26} color="#666" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => navigation.navigate("MuroDepto")}
+        >
+          <MaterialIcons name="business" size={26} color={COLORS.primary} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => navigation.navigate("TareaDpto")}
+        >
+          <MaterialIcons name="assignment" size={26} color="#666" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => navigation.navigate("EventoDpto")}
+        >
+          <MaterialIcons name="event" size={26} color="#666" />
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 };
@@ -440,11 +600,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    flex: 1,
   },
   headerTitle: {
     fontSize: FONT_SIZES.large,
     fontWeight: "bold",
     color: COLORS.text,
+  },
+  deptoSelector: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
   headerSubtitle: {
     fontSize: FONT_SIZES.small,
@@ -461,6 +627,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
+    paddingBottom: 80,
   },
   postCard: {
     backgroundColor: "#fff",
@@ -558,6 +725,26 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: FONT_SIZES.small,
   },
+  footerContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderTopColor: "#ddd",
+    paddingVertical: 12,
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 60,
+    elevation: 8,
+  },
+  iconButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 8,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
@@ -566,6 +753,7 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     width: "90%",
+    maxHeight: "80%",
     backgroundColor: "#fff",
     borderRadius: 12,
     padding: 20,
@@ -580,6 +768,38 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.small,
     color: COLORS.textSecondary,
     marginBottom: 16,
+  },
+  deptoItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+  },
+  deptoItemActive: {
+    backgroundColor: "#E3F2FD",
+  },
+  deptoItemText: {
+    flex: 1,
+    fontSize: FONT_SIZES.medium,
+    color: COLORS.text,
+  },
+  deptoItemTextActive: {
+    fontWeight: "600",
+    color: COLORS.primary,
+  },
+  closeButton: {
+    backgroundColor: COLORS.primary,
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 16,
+    alignItems: "center",
+  },
+  closeButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: FONT_SIZES.medium,
   },
   input: {
     minHeight: 120,

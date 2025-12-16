@@ -250,3 +250,102 @@ export async function agregarComentario(
     throw error;
   }
 }
+export async function obtenerTareasDepartamento(
+  empresaId: string,
+  nombreDepartamento: string
+): Promise<Tarea[]> {
+  try {
+    // Primero obtenemos todas las tareas de la empresa
+    const q = query(
+      collection(db, "Tareas"),
+      where("empresaId", "==", empresaId)
+    );
+    
+    const snapshot = await getDocs(q);
+    const tareas = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Tarea[];
+    
+    // Filtrar tareas donde al menos un usuario asignado es del departamento
+    // Para esto necesitamos obtener los usuarios del departamento
+    const usuariosQuery = query(
+      collection(db, "Usuarios"),
+      where("empresaId", "==", empresaId),
+      where("nombreDepartamento", "==", nombreDepartamento)
+    );
+    
+    const usuariosSnap = await getDocs(usuariosQuery);
+    const uidsDelDepto = usuariosSnap.docs.map(doc => doc.id);
+    
+    // Filtrar tareas donde el creador o algún asignado pertenece al departamento
+    const tareasDepartamento = tareas.filter(tarea => {
+      // Incluir si el creador es del departamento
+      if (uidsDelDepto.includes(tarea.creadaPor)) return true;
+      
+      // Incluir si algún asignado es del departamento
+      if (tarea.asignadoA.some(uid => uidsDelDepto.includes(uid))) return true;
+      
+      return false;
+    });
+    
+    // Ordenar por fecha
+    return tareasDepartamento.sort((a, b) => 
+      new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
+    );
+  } catch (error: any) {
+    console.error("❌ Error al obtener tareas de departamento:", error);
+    throw error;
+  }
+}
+
+/**
+ * Obtener tareas asignadas a usuarios de un departamento
+ */
+export async function obtenerTareasAsignadasDepartamento(
+  uid: string,
+  empresaId: string,
+  nombreDepartamento: string
+): Promise<Tarea[]> {
+  try {
+    const q = query(
+      collection(db, "Tareas"),
+      where("empresaId", "==", empresaId),
+      where("asignadoA", "array-contains", uid)
+    );
+    
+    const snapshot = await getDocs(q);
+    const tareas = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Tarea[];
+    
+    // Obtener usuarios del departamento para filtrar
+    const usuariosQuery = query(
+      collection(db, "Usuarios"),
+      where("empresaId", "==", empresaId),
+      where("nombreDepartamento", "==", nombreDepartamento)
+    );
+    
+    const usuariosSnap = await getDocs(usuariosQuery);
+    const uidsDelDepto = usuariosSnap.docs.map(doc => doc.id);
+    
+    // Filtrar tareas relacionadas con el departamento
+    const tareasDepartamento = tareas.filter(tarea => {
+      // Incluir si el creador es del departamento
+      if (uidsDelDepto.includes(tarea.creadaPor)) return true;
+      
+      // Incluir si algún asignado adicional es del departamento
+      if (tarea.asignadoA.some(uidAsignado => uidsDelDepto.includes(uidAsignado))) return true;
+      
+      return false;
+    });
+    
+    return tareasDepartamento.sort((a, b) => 
+      new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
+    );
+  } catch (error: any) {
+    console.error("❌ Error al obtener tareas asignadas de departamento:", error);
+    throw error;
+  }
+}

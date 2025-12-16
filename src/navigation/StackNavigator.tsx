@@ -35,6 +35,8 @@ import EventosScreen from "../screens/Eventos/EventosScreen";
 import CrearEventoScreen from "../screens/Eventos/CrearEventoScreen";
 import DetalleEventoScreen from "../screens/Eventos/DetalleEventoScreen";
 import MuroDepartamentoScreen from "../screens/muro/MuroDptoScreen";
+import TareasDeptoScreen  from "../screens/Tareas/TareasDptoScreen";
+import EventosDeptoScreen from "../screens/Eventos/EventosDptoScreen";
 //  Tipo de parámetros de navegación
 export type RootStackParamList = {
   Login: undefined;
@@ -51,6 +53,8 @@ export type RootStackParamList = {
   CrearEvento: undefined;
   DetalleEvento: { eventoId: string };
   MuroDpto:undefined;
+  TareaDpto: undefined;
+  EventoDpto: undefined;
   };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -255,6 +259,16 @@ console.log("USER EN STACK:", user);
             name="MuroDpto"
             component={MuroDepartamentoScreen}
             options={{title: "Muro Departamental"}}
+          />
+        <Stack.Screen
+            name="TareaDpto"
+            component={TareasDeptoScreen}
+            options={{title: "Tareas Departamental"}}
+          />        
+        <Stack.Screen
+            name="EventoDpto"
+            component={EventosDeptoScreen}
+            options={{title: "Evento Departamental"}}
           />
 
     

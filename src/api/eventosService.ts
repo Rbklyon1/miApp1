@@ -255,3 +255,108 @@ export async function obtenerEventosProximos(
     throw error;
   }
 }
+// Agregar estas funciones al eventosService.ts existente
+
+/**
+ * Obtener eventos de un departamento específico
+ */
+export async function obtenerEventosDepartamento(
+  empresaId: string,
+  nombreDepartamento: string
+): Promise<Evento[]> {
+  try {
+    // Obtener todos los eventos de la empresa
+    const q = query(
+      collection(db, "Eventos"),
+      where("empresaId", "==", empresaId)
+    );
+    
+    const snapshot = await getDocs(q);
+    const eventos = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Evento[];
+    
+    // Obtener usuarios del departamento
+    const usuariosQuery = query(
+      collection(db, "Usuarios"),
+      where("empresaId", "==", empresaId),
+      where("nombreDepartamento", "==", nombreDepartamento)
+    );
+    
+    const usuariosSnap = await getDocs(usuariosQuery);
+    const uidsDelDepto = usuariosSnap.docs.map(doc => doc.id);
+    
+    // Filtrar eventos donde el creador o algún asistente es del departamento
+    const eventosDepartamento = eventos.filter(evento => {
+      // Incluir si el creador es del departamento
+      if (uidsDelDepto.includes(evento.creadoPor)) return true;
+      
+      // Incluir si algún asistente es del departamento
+      if (evento.asistentes.some(asistente => uidsDelDepto.includes(asistente.uid))) return true;
+      
+      return false;
+    });
+    
+    // Ordenar por fecha de inicio
+    return eventosDepartamento.sort((a, b) => 
+      new Date(a.fechaInicio).getTime() - new Date(b.fechaInicio).getTime()
+    );
+  } catch (error: any) {
+    console.error("❌ Error al obtener eventos de departamento:", error);
+    throw error;
+  }
+}
+
+/**
+ * Obtener eventos asignados a usuarios de un departamento
+ */
+export async function obtenerEventosAsignadosDepartamento(
+  uid: string,
+  empresaId: string,
+  nombreDepartamento: string
+): Promise<Evento[]> {
+  try {
+    const q = query(
+      collection(db, "Eventos"),
+      where("empresaId", "==", empresaId)
+    );
+    
+    const snapshot = await getDocs(q);
+    const eventos = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Evento[];
+    
+    // Obtener usuarios del departamento
+    const usuariosQuery = query(
+      collection(db, "Usuarios"),
+      where("empresaId", "==", empresaId),
+      where("nombreDepartamento", "==", nombreDepartamento)
+    );
+    
+    const usuariosSnap = await getDocs(usuariosQuery);
+    const uidsDelDepto = usuariosSnap.docs.map(doc => doc.id);
+    
+    // Filtrar eventos donde el usuario está como asistente Y están relacionados con el departamento
+    const eventosAsignados = eventos.filter((evento) => {
+      // El usuario debe ser asistente
+      const esAsistente = evento.asistentes.some((a) => a.uid === uid);
+      if (!esAsistente) return false;
+      
+      // Y el evento debe estar relacionado con el departamento
+      const estaRelacionadoConDepto = 
+        uidsDelDepto.includes(evento.creadoPor) ||
+        evento.asistentes.some(a => uidsDelDepto.includes(a.uid));
+      
+      return estaRelacionadoConDepto;
+    });
+    
+    return eventosAsignados.sort((a, b) => 
+      new Date(a.fechaInicio).getTime() - new Date(b.fechaInicio).getTime()
+    );
+  } catch (error: any) {
+    console.error("❌ Error al obtener eventos asignados de departamento:", error);
+    throw error;
+  }
+}
