@@ -78,7 +78,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         nombreDepartamento: data.nombreDepartamento ?? null,
       });
 
-      navigation.replace("Home");
+      navigation.replace("Empresa");
     } catch (err: any) {
       Alert.alert("Error", err.message);
     } finally {

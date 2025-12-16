@@ -115,33 +115,28 @@ export const obtenerMuroGeneral = async (empresaId: string): Promise<Publicacion
  */
 export const obtenerMuroDepartamento = async (
   empresaId: string,
-  nombreDepartamento: string
+  departamentoId: string
 ): Promise<Publicacion[]> => {
-  try {
-    const q = query(
-      collection(db, "Publicaciones"),
-      where("empresaId", "==", empresaId),
-      where("tipoMuro", "==", "departamento"),
-      where("nombreDepartamento", "==", nombreDepartamento)
-    );
-    const snap = await getDocs(q);
-    
-    const publicaciones = snap.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    })) as Publicacion[];
+  const q = query(
+    collection(db, "Publicaciones"),
+    where("empresaId", "==", empresaId),
+    where("tipoMuro", "==", "departamento"),
+    where("departamentoId", "==", departamentoId), // 🔥 ESTE ES EL CLAVE
+  );
 
-    // Ordenar por fecha (más recientes primero)
-    return publicaciones.sort((a, b) => {
-      const fechaA = a.fechaCreacion?.seconds || 0;
-      const fechaB = b.fechaCreacion?.seconds || 0;
-      return fechaB - fechaA;
-    });
-  } catch (error) {
-    console.error("❌ Error obteniendo muro departamento:", error);
-    throw error;
-  }
+  const snapshot = await getDocs(q);
+
+return snapshot.docs.map((doc) => {
+  const data = doc.data() as Omit<Publicacion, "id">;
+
+  return {
+    id: doc.id,
+    ...data,
+  };
+});
+
 };
+
 
 /**
  * Editar una publicación

@@ -84,22 +84,26 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
       return;
     }
 
-    if (!departamentoActual) {
-      if (!esAdmin) {
-        Alert.alert(
-          "Sin departamento",
-          "No tienes un departamento asignado. Contacta a tu administrador."
-        );
-      }
-      return;
-    }
+    if (!user?.empresaId || !user?.idDepartamento) {
+  Alert.alert(
+    "Sin departamento",
+    "No tienes un departamento asignado. Contacta a tu administrador."
+  );
+  console.log("🔎 Cargando muro depto:", {
+  empresaId: user.empresaId,
+  departamentoId: user.idDepartamento,
+});
+
+  return;
+}
 
     try {
       setLoading(true);
       const data = await obtenerMuroDepartamento(
         user.empresaId,
-        departamentoActual
+        user.idDepartamento
       );
+
       setPosts(data);
     } catch (error) {
       console.error("Error al cargar muro:", error);
@@ -110,10 +114,8 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
   };
 
   useEffect(() => {
-    if (departamentoActual) {
-      cargarMuro();
-    }
-  }, [user?.empresaId, departamentoActual]);
+  cargarMuro();
+}, [user?.empresaId, user?.idDepartamento]);
 
   const crearPost = async () => {
     if (!contenidoPost.trim() || !user?.empresaId || !departamentoActual) {
