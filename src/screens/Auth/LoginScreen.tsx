@@ -135,6 +135,9 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         <TouchableOpacity onPress={handleReset}>
           <Text style={styles.link}>¿Olvidaste tu contraseña?</Text>
         </TouchableOpacity>
+        <TouchableOpacity onPress={()=> navigation.navigate ("Register")}>
+          <Text style={styles.link}>¿no tienes cuenta? Crea una</Text>
+        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );

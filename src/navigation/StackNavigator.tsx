@@ -37,6 +37,7 @@ import DetalleEventoScreen from "../screens/Eventos/DetalleEventoScreen";
 import MuroDepartamentoScreen from "../screens/muro/MuroDptoScreen";
 import TareasDeptoScreen  from "../screens/Tareas/TareasDptoScreen";
 import EventosDeptoScreen from "../screens/Eventos/EventosDptoScreen";
+
 //  Tipo de parámetros de navegación
 export type RootStackParamList = {
   Login: undefined;
@@ -123,6 +124,8 @@ const handleLogout = async () => {
 
       Alert.alert("Éxito", "Empresa creada y vinculada correctamente.");
       setEmpresaModal(false);
+      setNombreEmpresa("");
+      setCodigoAcceso("");
     } catch (error) {
       console.error(" Error al crear empresa:", error);
       Alert.alert("Error", "No se pudo crear la empresa.");
@@ -161,6 +164,7 @@ const handleUnirseEmpresa = async () => {
 
     Alert.alert("Éxito", `Te uniste a ${empresa.nombre}`);
     setUnirseModal(false);
+    setCodigoUnirse("");
   } catch (error) {
     console.error(" Error al unirse:", error);
     Alert.alert("Error", "No se pudo unir a la empresa.");
@@ -198,12 +202,12 @@ console.log("USER EN STACK:", user);
         <Stack.Screen
           name="Register"
           component={RegisterScreen}
-          options={{ title: "Registro" }}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="Home"
           component={HomeScreen}
-          options={{ title: "Black Horse Sports Bar" }}
+          options={{ title: "Muro" }}
         />
         <Stack.Screen
           name="Profile"
@@ -270,9 +274,6 @@ console.log("USER EN STACK:", user);
             component={EventosDeptoScreen}
             options={{title: "Evento Departamental"}}
           />
-
-    
-
       </Stack.Navigator>
 
       {/*  Modal del Menú */}
@@ -286,84 +287,124 @@ console.log("USER EN STACK:", user);
           <View style={styles.menuContainer}>
             <Text style={styles.menuTitle}>Menú de Usuario</Text>
 
+            {/* Mi Perfil */}
             <Pressable
-        style={styles.menuOption}
-        onPress={() => {
-          setMenuVisible(false);
-          navigation.navigate("Profile"); 
-        }}
-      >
-        <MaterialIcons name="person" size={22} color={COLORS.primary} />
-        <Text style={styles.menuText}>Mi Perfil</Text>
-      </Pressable>
-{/*muro*/}
-{user && user.rol !== "Administrador" && (
-  user.idDepartamento ? (
-    <Pressable
-      style={styles.menuOption}
-      onPress={() => {
-        setMenuVisible(false);
-        navigation.navigate("MuroDpto");
-      }}
-    >
-      <MaterialIcons name="groups" size={22} color={COLORS.primary} />
-      <Text style={styles.menuText}>Muro de mi departamento</Text>
-    </Pressable>
-  ) : (
-    <View style={styles.menuOption}>
-      <MaterialIcons name="info" size={22} color={COLORS.textSecondary} />
-      <Text style={[styles.menuText, { color: COLORS.textSecondary }]}>
-        Aún no estás asignado a un departamento
-      </Text>
-    </View>
-  )
-)}
+              style={styles.menuOption}
+              onPress={() => {
+                setMenuVisible(false);
+                navigation.navigate("Profile"); 
+              }}
+            >
+              <MaterialIcons name="person" size={22} color={COLORS.primary} />
+              <Text style={styles.menuText}>Mi Perfil</Text>
+            </Pressable>
+            
+            {/* Muro departamental */}
+            {user && user.rol !== "Administrador" && (
+              user.idDepartamento ? (
+                <Pressable
+                  style={styles.menuOption}
+                  onPress={() => {
+                    setMenuVisible(false);
+                    navigation.navigate("MuroDpto");
+                  }}
+                >
+                  <MaterialIcons name="groups" size={22} color={COLORS.primary} />
+                  <Text style={styles.menuText}>Muro de mi departamento</Text>
+                </Pressable>
+              ) : (
+                <View style={styles.menuOption}>
+                  <MaterialIcons name="info" size={22} color={COLORS.textSecondary} />
+                  <Text style={[styles.menuText, { color: COLORS.textSecondary }]}>
+                    Aún no estás asignado a un departamento
+                  </Text>
+                </View>
+              )
+            )}
 
+            {/* Sección de Empresas */}
+            <View style={styles.sectionDivider}>
+              <Text style={styles.sectionHeader}>Empresas</Text>
+            </View>
 
+            {/* Crear Empresa */}
+            <Pressable
+              style={styles.menuOption}
+              onPress={() => {
+                setMenuVisible(false);
+                setEmpresaModal(true);
+              }}
+            >
+              <MaterialIcons name="add-business" size={22} color={COLORS.primary} />
+              <Text style={styles.menuText}>Crear Empresa</Text>
+            </Pressable>
 
+            {/* Unirse a Empresa */}
+            <Pressable
+              style={styles.menuOption}
+              onPress={() => {
+                setMenuVisible(false);
+                setUnirseModal(true);
+              }}
+            >
+              <MaterialIcons name="business" size={22} color={COLORS.primary} />
+              <Text style={styles.menuText}>Unirse a Empresa</Text>
+            </Pressable>
 
+            {/* Sección de Administración */}
+            <View style={styles.sectionDivider}>
+              <Text style={styles.sectionHeader}>Administración</Text>
+            </View>
 
-<View style={styles.sectionDivider}>
-  <Text style={styles.sectionHeader}>Administración</Text>
-</View>
+            {user?.rol === "Administrador" && user?.empresaSeleccionada &&(
+              <>
+                <Pressable 
+                  style={styles.menuOption} 
+                  onPress={() => {
+                    setMenuVisible(false);
+                    navigation.navigate("GestionPermisos");
+                  }}
+                >
+                  <MaterialIcons name="security" size={22} color={COLORS.primary}/>
+                  <Text style={styles.menuText}>Gestionar Permisos</Text>
+                </Pressable>
+                <Pressable  
+                  style={styles.menuOption} 
+                  onPress={() => {
+                    setMenuVisible(false);
+                    navigation.navigate("GestionUsuarios");
+                  }}
+                >
+                  <MaterialIcons name="person-search" size={22} color={COLORS.primary}/>
+                  <Text style={styles.menuText}>Gestiona Usuarios</Text>
+                </Pressable>
+              </>
+            )}
 
-{user?.rol === "Administrador" && user?.empresaSeleccionada &&(
-  <>
-    <Pressable style={styles.menuOption} onPress={() => navigation.navigate("GestionPermisos")}>
-      <MaterialIcons name ="security" size={22} color ={COLORS.primary}/>
-      <Text style={styles.menuText}>Gestionar Permisos</Text>
-    </Pressable>
-    <Pressable  style={styles.menuOption} onPress={() => navigation.navigate("GestionUsuarios")}>
-      <MaterialIcons name ="person-search" size={22} color ={COLORS.primary}/>
-      <Text style={styles.menuText}> Gestiona Usuarios</Text>
-    </Pressable>
-  </>
-)}
+            {/* Cerrar Sesión */}
+            <Pressable
+              style={styles.menuOption}
+              onPress={() => {
+                setMenuVisible(false);
+                handleLogout();
+              }}
+            >
+              <MaterialIcons name="logout" size={22} color={COLORS.error} />
+              <Text style={[styles.menuText, { color: COLORS.error }]}>
+                Cerrar Sesión
+              </Text>
+            </Pressable>
 
-      <Pressable
-        style={styles.menuOption}
-        onPress={() => {
-          setMenuVisible(false);
-          handleLogout();
-        }}
-      >
-        <MaterialIcons name="logout" size={22} color={COLORS.error} />
-        <Text style={[styles.menuText, { color: COLORS.error }]}>
-          Cerrar Sesión
-        </Text>
-      </Pressable>
-
-
-      <Pressable
-        style={styles.closeMenuButton}
-        onPress={() => setMenuVisible(false)}
-      >
-        <Text style={styles.closeMenuText}>Cancelar</Text>
-      </Pressable>
-    </View>      
-  </View>
-
-</Modal>
+            {/* Botón Cancelar */}
+            <Pressable
+              style={styles.closeMenuButton}
+              onPress={() => setMenuVisible(false)}
+            >
+              <Text style={styles.closeMenuText}>Cancelar</Text>
+            </Pressable>
+          </View>      
+        </View>
+      </Modal>
 
       {/*  Modal de crear empresa */}
       <Modal
@@ -406,7 +447,8 @@ console.log("USER EN STACK:", user);
           </View>
         </View>
       </Modal>
-            {/* Modal de unirse a empresa */}
+
+      {/* Modal de unirse a empresa */}
       <Modal
         animationType="slide"
         transparent
@@ -452,6 +494,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    maxHeight: "80%",
   },
   menuTitle: {
     fontSize: FONT_SIZES.large,
@@ -472,9 +515,11 @@ const styles = StyleSheet.create({
   closeMenuButton: {
     alignSelf: "center",
     marginTop: 10,
+    paddingVertical: 10,
   },
   closeMenuText: {
     color: COLORS.textSecondary,
+    fontSize: FONT_SIZES.medium,
   },
   modalOverlay: {
     flex: 1,
@@ -517,7 +562,7 @@ const styles = StyleSheet.create({
     color: COLORS.error,
     marginTop: 10,
   },
-    sectionDivider: {
+  sectionDivider: {
     height: 1,
     backgroundColor: "#ddd",
     marginVertical: 10,
@@ -529,7 +574,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginLeft: 10,
   },
-
 });
 
 export default StackNavigator;

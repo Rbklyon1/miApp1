@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   content: { flex: 1, justifyContent: "center", alignItems: "center", padding: 20 },
   title: {
-    fontSize: FONT_SIZES.xxlarge,
+    fontSize: FONT_SIZES.xlarge,
     fontWeight: "bold",
     color: COLORS.primary,
   },
