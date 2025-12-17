@@ -1,4 +1,4 @@
-// api/tareasService.ts
+import { offlineService } from './OfflineService';
 import { db } from "./firebaseConfig";
 import {
   collection,
@@ -15,60 +15,60 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { Tarea, TareaFormData, EstadoTarea } from "../types/tareas";
-
+import NetInfo from '@react-native-community/netinfo';
 /**
  * Crear una nueva tarea
  */
-export async function crearTarea(
-  formData: TareaFormData,
-  creadaPor: string,
-  nombreCreador: string,
-  empresaId: string,
-  empresaNombre: string,
-  nombresAsignados: string[],
-  rolCreador?: string
-): Promise<string> {
-  try {
-    // Validación extra: Si es Jefe, verificar que no asigne a Admins
-    if (rolCreador === "Jefe") {
-      // Aquí podrías hacer una validación adicional si quieres ser extra cuidadoso
-      console.log("⚠️ Jefe creando tarea - validación de permisos activa");
-    }
+// export async function crearTarea(
+//   formData: TareaFormData,
+//   creadaPor: string,
+//   nombreCreador: string,
+//   empresaId: string,
+//   empresaNombre: string,
+//   nombresAsignados: string[],
+//   rolCreador?: string
+// ): Promise<string> {
+//   try {
+//     // Validación extra: Si es Jefe, verificar que no asigne a Admins
+//     if (rolCreador === "Jefe") {
+//       // Aquí podrías hacer una validación adicional si quieres ser extra cuidadoso
+//       console.log("⚠️ Jefe creando tarea - validación de permisos activa");
+//     }
 
-    const docRef = await addDoc(collection(db, "Tareas"), {
-      titulo: formData.titulo,
-      descripcion: formData.descripcion,
-      prioridad: formData.prioridad,
-      estado: "Pendiente",
+//     const docRef = await addDoc(collection(db, "Tareas"), {
+//       titulo: formData.titulo,
+//       descripcion: formData.descripcion,
+//       prioridad: formData.prioridad,
+//       estado: "Pendiente",
       
-      fechaCreacion: new Date().toISOString(),
-      fechaVencimiento: formData.fechaVencimiento?.toISOString() || null,
+//       fechaCreacion: new Date().toISOString(),
+//       fechaVencimiento: formData.fechaVencimiento?.toISOString() || null,
       
-      creadaPor,
-      nombreCreador,
-      asignadoA: formData.asignadoA,
-      nombresAsignados,
+//       creadaPor,
+//       nombreCreador,
+//       asignadoA: formData.asignadoA,
+//       nombresAsignados,
       
-      empresaId,
-      empresaNombre,
+//       empresaId,
+//       empresaNombre,
       
-      etiquetas: formData.etiquetas || [],
-      comentarios: [],
-    });
+//       etiquetas: formData.etiquetas || [],
+//       comentarios: [],
+//     });
 
-    console.log("✅ Tarea creada con ID:", docRef.id);
-    return docRef.id;
-  } catch (error: any) {
-    console.error("❌ Error al crear tarea:", error);
+//     console.log("✅ Tarea creada con ID:", docRef.id);
+//     return docRef.id;
+//   } catch (error: any) {
+//     console.error("❌ Error al crear tarea:", error);
     
-    // Mensaje específico si es problema de permisos
-    if (error.code === "permission-denied") {
-      throw new Error("No tienes permisos para asignar esta tarea a los usuarios seleccionados");
-    }
+//     // Mensaje específico si es problema de permisos
+//     if (error.code === "permission-denied") {
+//       throw new Error("No tienes permisos para asignar esta tarea a los usuarios seleccionados");
+//     }
     
-    throw error;
-  }
-}
+//     throw error;
+//   }
+// }
 
 /**
  * Obtener tareas de una empresa
@@ -167,25 +167,25 @@ export async function obtenerTareasCreadasPor(
 /**
  * Actualizar estado de una tarea
  */
-export async function actualizarEstadoTarea(
-  tareaId: string,
-  nuevoEstado: EstadoTarea
-): Promise<void> {
-  try {
-    const tareaRef = doc(db, "Tareas", tareaId);
-    const updateData: any = { estado: nuevoEstado };
+// export async function actualizarEstadoTarea(
+//   tareaId: string,
+//   nuevoEstado: EstadoTarea
+// ): Promise<void> {
+//   try {
+//     const tareaRef = doc(db, "Tareas", tareaId);
+//     const updateData: any = { estado: nuevoEstado };
     
-    if (nuevoEstado === "Completada") {
-      updateData.fechaCompletada = new Date().toISOString();
-    }
+//     if (nuevoEstado === "Completada") {
+//       updateData.fechaCompletada = new Date().toISOString();
+//     }
     
-    await updateDoc(tareaRef, updateData);
-    console.log(`✅ Estado actualizado: ${nuevoEstado}`);
-  } catch (error) {
-    console.error("❌ Error al actualizar estado:", error);
-    throw error;
-  }
-}
+//     await updateDoc(tareaRef, updateData);
+//     console.log(`✅ Estado actualizado: ${nuevoEstado}`);
+//   } catch (error) {
+//     console.error("❌ Error al actualizar estado:", error);
+//     throw error;
+//   }
+// }
 
 /**
  * Editar una tarea existente
@@ -216,40 +216,40 @@ export async function eliminarTarea(tareaId: string): Promise<void> {
     throw error;
   }
 }
-export async function agregarComentario(
-  tareaId: string,
-  comentario: {
-    texto: string;
-    autorUid: string;
-    autorNombre: string;
-  }
-): Promise<void> {
-  try {
-    const tareaRef = doc(db, "Tareas", tareaId);
-    const tareaDoc = await getDoc(tareaRef);
+// export async function agregarComentario(
+//   tareaId: string,
+//   comentario: {
+//     texto: string;
+//     autorUid: string;
+//     autorNombre: string;
+//   }
+// ): Promise<void> {
+//   try {
+//     const tareaRef = doc(db, "Tareas", tareaId);
+//     const tareaDoc = await getDoc(tareaRef);
     
-    if (!tareaDoc.exists()) {
-      throw new Error("Tarea no encontrada");
-    }
+//     if (!tareaDoc.exists()) {
+//       throw new Error("Tarea no encontrada");
+//     }
     
-    const tareaData = tareaDoc.data();
-    const comentarios = tareaData.comentarios || [];
+//     const tareaData = tareaDoc.data();
+//     const comentarios = tareaData.comentarios || [];
     
-    comentarios.push({
-      id: Date.now().toString(),
-      texto: comentario.texto,
-      autorUid: comentario.autorUid,
-      autorNombre: comentario.autorNombre,
-      fecha: new Date().toISOString(),
-    });
+//     comentarios.push({
+//       id: Date.now().toString(),
+//       texto: comentario.texto,
+//       autorUid: comentario.autorUid,
+//       autorNombre: comentario.autorNombre,
+//       fecha: new Date().toISOString(),
+//     });
     
-    await updateDoc(tareaRef, { comentarios });
-    console.log("✅ Comentario agregado");
-  } catch (error) {
-    console.error("❌ Error al agregar comentario:", error);
-    throw error;
-  }
-}
+//     await updateDoc(tareaRef, { comentarios });
+//     console.log("✅ Comentario agregado");
+//   } catch (error) {
+//     console.error("❌ Error al agregar comentario:", error);
+//     throw error;
+//   }
+// }
 export async function obtenerTareasDepartamento(
   empresaId: string,
   nombreDepartamento: string
@@ -349,3 +349,170 @@ export async function obtenerTareasAsignadasDepartamento(
     throw error;
   }
 }
+// Agregar estas importaciones al inicio del archivo existente
+
+
+/**
+ * Crear una nueva tarea (con soporte offline)
+ */
+export async function crearTarea(
+  formData: TareaFormData,
+  creadaPor: string,
+  nombreCreador: string,
+  empresaId: string,
+  empresaNombre: string,
+  nombresAsignados: string[],
+  rolCreador?: string
+): Promise<string> {
+  // Verificar conexión
+  const state = await NetInfo.fetch();
+  const isOnline = state.isConnected ?? false;
+
+  const tareaData = {
+    titulo: formData.titulo,
+    descripcion: formData.descripcion,
+    prioridad: formData.prioridad,
+    estado: "Pendiente" as EstadoTarea,
+    
+    fechaVencimiento: formData.fechaVencimiento?.toISOString() || null,
+    
+    creadaPor,
+    nombreCreador,
+    asignadoA: formData.asignadoA,
+    nombresAsignados,
+    
+    empresaId,
+    empresaNombre,
+    
+    etiquetas: formData.etiquetas || [],
+    comentarios: [],
+  };
+
+  if (!isOnline) {
+    // Modo offline - agregar a cola
+    const offlineId = await offlineService.addOperation(
+      'crear_tarea',
+      tareaData,
+      creadaPor
+    );
+
+    console.log("📴 Tarea guardada offline:", offlineId);
+    return offlineId;
+  }
+
+  // Modo online - guardar directamente
+  try {
+    if (rolCreador === "Jefe") {
+      console.log("⚠️ Jefe creando tarea - validación de permisos activa");
+    }
+
+    const docRef = await addDoc(collection(db, "Tareas"), {
+      ...tareaData,
+      fechaCreacion: new Date().toISOString(),
+    });
+
+    console.log("✅ Tarea creada con ID:", docRef.id);
+    return docRef.id;
+  } catch (error: any) {
+    console.error("❌ Error al crear tarea:", error);
+    
+    if (error.code === "permission-denied") {
+      throw new Error("No tienes permisos para asignar esta tarea a los usuarios seleccionados");
+    }
+    
+    throw error;
+  }
+}
+
+/**
+ * Actualizar estado de una tarea (con soporte offline)
+ */
+export async function actualizarEstadoTarea(
+  tareaId: string,
+  nuevoEstado: EstadoTarea
+): Promise<void> {
+  // Verificar conexión
+  const state = await NetInfo.fetch();
+  const isOnline = state.isConnected ?? false;
+
+  const updateData: any = { estado: nuevoEstado };
+  
+  if (nuevoEstado === "Completada") {
+    updateData.fechaCompletada = new Date().toISOString();
+  }
+
+  if (!isOnline) {
+    // Modo offline
+    await offlineService.addOperation(
+      'actualizar_estado_tarea',
+      { tareaId, estado: nuevoEstado },
+      'current_user' // Deberías pasar el UID real
+    );
+    console.log("📴 Actualización de estado guardada offline");
+    return;
+  }
+
+  // Modo online
+  try {
+    const tareaRef = doc(db, "Tareas", tareaId);
+    await updateDoc(tareaRef, updateData);
+    console.log(`✅ Estado actualizado: ${nuevoEstado}`);
+  } catch (error) {
+    console.error("❌ Error al actualizar estado:", error);
+    throw error;
+  }
+}
+
+/**
+ * Agregar comentario (con soporte offline)
+ */
+export async function agregarComentario(
+  tareaId: string,
+  comentario: {
+    texto: string;
+    autorUid: string;
+    autorNombre: string;
+  }
+): Promise<void> {
+  try {
+    const tareaRef = doc(db, "Tareas", tareaId);
+    const tareaDoc = await getDoc(tareaRef);
+    
+    if (!tareaDoc.exists()) {
+      throw new Error("Tarea no encontrada");
+    }
+    
+    const tareaData = tareaDoc.data();
+    const comentarios = tareaData.comentarios || [];
+    
+    comentarios.push({
+      id: Date.now().toString(),
+      texto: comentario.texto,
+      autorUid: comentario.autorUid,
+      autorNombre: comentario.autorNombre,
+      fecha: new Date().toISOString(),
+    });
+
+    // Verificar conexión
+    const state = await NetInfo.fetch();
+    const isOnline = state.isConnected ?? false;
+
+    if (!isOnline) {
+      await offlineService.addOperation(
+        'agregar_comentario_tarea',
+        { tareaId, comentarios },
+        comentario.autorUid
+      );
+      console.log("📴 Comentario guardado offline");
+      return;
+    }
+    
+    await updateDoc(tareaRef, { comentarios });
+    console.log("✅ Comentario agregado");
+  } catch (error) {
+    console.error("❌ Error al agregar comentario:", error);
+    throw error;
+  }
+}
+
+// El resto de las funciones permanecen igual...

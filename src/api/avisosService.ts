@@ -9,11 +9,8 @@ import {
   deleteDoc,
   query,
   where,
-  orderBy,
-  arrayUnion,
-  arrayRemove,
 } from "firebase/firestore";
-import { Aviso, AvisoFormData, ComentarioAviso, Reaccion } from "../../types/avisos";
+import { Aviso, AvisoFormData, ComentarioAviso, Reaccion } from "../types/avisos";
 
 /**
  * Crear un nuevo aviso

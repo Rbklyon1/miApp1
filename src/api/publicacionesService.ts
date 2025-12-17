@@ -11,6 +11,8 @@ import {
   getDoc,
 } from "firebase/firestore";
 import { db } from "./firebaseConfig";
+import { offlineService } from "./OfflineService";
+import NetInfo from '@react-native-community/netinfo';
 
 export type TipoMuro = "general" | "departamento";
 
@@ -28,6 +30,9 @@ export interface Publicacion {
   fechaActualizacion?: any;
   comentarios?: Comentario[];
   reacciones?: Reaccion[];
+  // Campos para modo offline
+  isOffline?: boolean;
+  offlineId?: string;
 }
 
 export interface Comentario {
@@ -46,7 +51,7 @@ export interface Reaccion {
 }
 
 /**
- * Crear una nueva publicación
+ * Crear una nueva publicación (con soporte offline)
  */
 export const crearPublicacion = async (data: {
   contenido: string;
@@ -58,6 +63,34 @@ export const crearPublicacion = async (data: {
   nombreUsuario: string;
   rolUsuario: string;
 }): Promise<string> => {
+  // Verificar conexión
+  const state = await NetInfo.fetch();
+  const isOnline = state.isConnected ?? false;
+
+  if (!isOnline) {
+    // Modo offline - agregar a cola
+    const offlineId = await offlineService.addOperation(
+      'crear_publicacion',
+      {
+        contenido: data.contenido,
+        empresaId: data.empresaId,
+        tipoMuro: data.tipoMuro,
+        departamentoId: data.departamentoId || null,
+        nombreDepartamento: data.nombreDepartamento || null,
+        creadaPor: data.creadaPor,
+        nombreUsuario: data.nombreUsuario,
+        rolUsuario: data.rolUsuario,
+        comentarios: [],
+        reacciones: [],
+      },
+      data.creadaPor
+    );
+
+    console.log("📴 Publicación guardada offline:", offlineId);
+    return offlineId;
+  }
+
+  // Modo online - guardar directamente
   try {
     const docRef = await addDoc(collection(db, "Publicaciones"), {
       contenido: data.contenido,
@@ -121,30 +154,43 @@ export const obtenerMuroDepartamento = async (
     collection(db, "Publicaciones"),
     where("empresaId", "==", empresaId),
     where("tipoMuro", "==", "departamento"),
-    where("departamentoId", "==", departamentoId), // 🔥 ESTE ES EL CLAVE
+    where("departamentoId", "==", departamentoId), 
   );
 
   const snapshot = await getDocs(q);
 
-return snapshot.docs.map((doc) => {
-  const data = doc.data() as Omit<Publicacion, "id">;
+  return snapshot.docs.map((doc) => {
+    const data = doc.data() as Omit<Publicacion, "id">;
 
-  return {
-    id: doc.id,
-    ...data,
-  };
-});
-
+    return {
+      id: doc.id,
+      ...data,
+    };
+  });
 };
 
-
 /**
- * Editar una publicación
+ * Editar una publicación (con soporte offline)
  */
 export const editarPublicacion = async (
   postId: string,
   contenido: string
 ): Promise<void> => {
+  const state = await NetInfo.fetch();
+  const isOnline = state.isConnected ?? false;
+
+  if (!isOnline) {
+    // Modo offline
+    await offlineService.addOperation(
+      'editar_publicacion',
+      { postId, contenido },
+      'current_user' // Deberías pasar el UID real
+    );
+    console.log("📴 Edición guardada offline");
+    return;
+  }
+
+  // Modo online
   try {
     await updateDoc(doc(db, "Publicaciones", postId), {
       contenido,
@@ -171,7 +217,7 @@ export const eliminarPublicacion = async (postId: string): Promise<void> => {
 };
 
 /**
- * Agregar reacción a una publicación
+ * Agregar reacción a una publicación (con soporte offline)
  */
 export const agregarReaccion = async (
   postId: string,
@@ -190,27 +236,36 @@ export const agregarReaccion = async (
     const postData = postDoc.data();
     let reacciones = postData.reacciones || [];
 
-    // Verificar si el usuario ya reaccionó
     const reaccionExistente = reacciones.find((r: Reaccion) => r.uid === uid);
 
     if (reaccionExistente) {
-      // Si es la misma reacción, la eliminamos
       if (reaccionExistente.tipo === tipo) {
         reacciones = reacciones.filter((r: Reaccion) => r.uid !== uid);
       } else {
-        // Si es diferente, la actualizamos
         reacciones = reacciones.map((r: Reaccion) =>
           r.uid === uid ? { ...r, tipo, fecha: new Date().toISOString() } : r
         );
       }
     } else {
-      // Agregar nueva reacción
       reacciones.push({
         uid,
         nombreUsuario,
         tipo,
         fecha: new Date().toISOString(),
       });
+    }
+
+    const state = await NetInfo.fetch();
+    const isOnline = state.isConnected ?? false;
+
+    if (!isOnline) {
+      await offlineService.addOperation(
+        'agregar_reaccion',
+        { postId, reacciones },
+        uid
+      );
+      console.log("📴 Reacción guardada offline");
+      return;
     }
 
     await updateDoc(postRef, { reacciones });
