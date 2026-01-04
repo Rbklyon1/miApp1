@@ -16,59 +16,7 @@ import {
 } from "firebase/firestore";
 import { Tarea, TareaFormData, EstadoTarea } from "../types/tareas";
 import NetInfo from '@react-native-community/netinfo';
-/**
- * Crear una nueva tarea
- */
-// export async function crearTarea(
-//   formData: TareaFormData,
-//   creadaPor: string,
-//   nombreCreador: string,
-//   empresaId: string,
-//   empresaNombre: string,
-//   nombresAsignados: string[],
-//   rolCreador?: string
-// ): Promise<string> {
-//   try {
-//     // Validación extra: Si es Jefe, verificar que no asigne a Admins
-//     if (rolCreador === "Jefe") {
-//       // Aquí podrías hacer una validación adicional si quieres ser extra cuidadoso
-//       console.log("⚠️ Jefe creando tarea - validación de permisos activa");
-//     }
 
-//     const docRef = await addDoc(collection(db, "Tareas"), {
-//       titulo: formData.titulo,
-//       descripcion: formData.descripcion,
-//       prioridad: formData.prioridad,
-//       estado: "Pendiente",
-      
-//       fechaCreacion: new Date().toISOString(),
-//       fechaVencimiento: formData.fechaVencimiento?.toISOString() || null,
-      
-//       creadaPor,
-//       nombreCreador,
-//       asignadoA: formData.asignadoA,
-//       nombresAsignados,
-      
-//       empresaId,
-//       empresaNombre,
-      
-//       etiquetas: formData.etiquetas || [],
-//       comentarios: [],
-//     });
-
-//     console.log("✅ Tarea creada con ID:", docRef.id);
-//     return docRef.id;
-//   } catch (error: any) {
-//     console.error("❌ Error al crear tarea:", error);
-    
-//     // Mensaje específico si es problema de permisos
-//     if (error.code === "permission-denied") {
-//       throw new Error("No tienes permisos para asignar esta tarea a los usuarios seleccionados");
-//     }
-    
-//     throw error;
-//   }
-// }
 
 /**
  * Obtener tareas de una empresa
@@ -164,28 +112,6 @@ export async function obtenerTareasCreadasPor(
   }
 }
 
-/**
- * Actualizar estado de una tarea
- */
-// export async function actualizarEstadoTarea(
-//   tareaId: string,
-//   nuevoEstado: EstadoTarea
-// ): Promise<void> {
-//   try {
-//     const tareaRef = doc(db, "Tareas", tareaId);
-//     const updateData: any = { estado: nuevoEstado };
-    
-//     if (nuevoEstado === "Completada") {
-//       updateData.fechaCompletada = new Date().toISOString();
-//     }
-    
-//     await updateDoc(tareaRef, updateData);
-//     console.log(`✅ Estado actualizado: ${nuevoEstado}`);
-//   } catch (error) {
-//     console.error("❌ Error al actualizar estado:", error);
-//     throw error;
-//   }
-// }
 
 /**
  * Editar una tarea existente
@@ -216,40 +142,7 @@ export async function eliminarTarea(tareaId: string): Promise<void> {
     throw error;
   }
 }
-// export async function agregarComentario(
-//   tareaId: string,
-//   comentario: {
-//     texto: string;
-//     autorUid: string;
-//     autorNombre: string;
-//   }
-// ): Promise<void> {
-//   try {
-//     const tareaRef = doc(db, "Tareas", tareaId);
-//     const tareaDoc = await getDoc(tareaRef);
-    
-//     if (!tareaDoc.exists()) {
-//       throw new Error("Tarea no encontrada");
-//     }
-    
-//     const tareaData = tareaDoc.data();
-//     const comentarios = tareaData.comentarios || [];
-    
-//     comentarios.push({
-//       id: Date.now().toString(),
-//       texto: comentario.texto,
-//       autorUid: comentario.autorUid,
-//       autorNombre: comentario.autorNombre,
-//       fecha: new Date().toISOString(),
-//     });
-    
-//     await updateDoc(tareaRef, { comentarios });
-//     console.log("✅ Comentario agregado");
-//   } catch (error) {
-//     console.error("❌ Error al agregar comentario:", error);
-//     throw error;
-//   }
-// }
+
 export async function obtenerTareasDepartamento(
   empresaId: string,
   nombreDepartamento: string
@@ -349,7 +242,6 @@ export async function obtenerTareasAsignadasDepartamento(
     throw error;
   }
 }
-// Agregar estas importaciones al inicio del archivo existente
 
 
 /**
@@ -402,19 +294,16 @@ export async function crearTarea(
 
   // Modo online - guardar directamente
   try {
-    if (rolCreador === "Jefe") {
-      console.log("⚠️ Jefe creando tarea - validación de permisos activa");
-    }
 
     const docRef = await addDoc(collection(db, "Tareas"), {
       ...tareaData,
       fechaCreacion: new Date().toISOString(),
     });
 
-    console.log("✅ Tarea creada con ID:", docRef.id);
+    console.log(" Tarea creada con ID:", docRef.id);
     return docRef.id;
   } catch (error: any) {
-    console.error("❌ Error al crear tarea:", error);
+    console.error(" Error al crear tarea:", error);
     
     if (error.code === "permission-denied") {
       throw new Error("No tienes permisos para asignar esta tarea a los usuarios seleccionados");
