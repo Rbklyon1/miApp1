@@ -69,7 +69,7 @@ const EmpresaScreen: React.FC = () => {
   };
 
 useEffect(() => {
-  console.log("🔥 USER CONTEXT ACTUAL:", user);
+  console.log(" USER CONTEXT ACTUAL:", user);
 }, [user]);
 
   return (
