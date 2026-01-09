@@ -23,7 +23,6 @@ import { doc, getDoc } from "firebase/firestore";
 import { useUser } from "../../context/UserContext";
 import { MaterialIcons } from "@expo/vector-icons";
 
-// 🔥 Imports para offline
 import { useOffline } from "../../Hooks/useOffline";
 import { useOfflineAuth } from "../../Hooks/useOfflineAuth";
 import { loginOffline } from "../../api/offlineAuthService";
@@ -47,7 +46,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
   });
   const [loading, setLoading] = useState(false);
 
-  // 🔥 Hooks offline
+  // Hooks offline
   const { isOnline } = useOffline();
   const { isSyncingUsers, usersPending } = useOfflineAuth();
 

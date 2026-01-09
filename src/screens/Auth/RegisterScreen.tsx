@@ -41,7 +41,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // 🔥 Hook offline
+  // Hook offline
   const { isOnline } = useOffline();
 
   const handleRegisterUser = async () => {

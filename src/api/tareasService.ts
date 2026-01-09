@@ -10,9 +10,6 @@ import {
   deleteDoc,
   query,
   where,
-  orderBy,
-  serverTimestamp,
-  Timestamp,
 } from "firebase/firestore";
 import { Tarea, TareaFormData, EstadoTarea } from "../types/tareas";
 import NetInfo from '@react-native-community/netinfo';
