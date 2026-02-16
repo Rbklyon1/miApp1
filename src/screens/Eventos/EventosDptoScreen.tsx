@@ -32,7 +32,7 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
   const [vistaActual, setVistaActual] = useState<"todos" | "asignados">(
     "todos"
   );
-
+//listo 
   // Para administradores
   const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
   const [deptoSeleccionado, setDeptoSeleccionado] = useState<string | null>(
