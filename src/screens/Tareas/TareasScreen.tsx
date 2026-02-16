@@ -1,22 +1,22 @@
+import { MaterialIcons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
   Alert,
+  FlatList,
   RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
 import { useUser } from "../../context/UserContext";
 import {
-  obtenerTareasDeEmpresa,
   obtenerTareasAsignadas,
   obtenerTareasCreadasPor,
-} from "../../api/tareasService";
-import { Tarea, EstadoTarea } from "../../types/tareas";
+  obtenerTareasDeEmpresa,
+} from "../../Services/tareasService";
 import { COLORS, FONT_SIZES } from "../../types";
+import { EstadoTarea, Tarea } from "../../types/tareas";
 
 type VistaFiltro = "todas" | "asignadas" | "creadas";
 
@@ -46,10 +46,16 @@ const TareasScreen: React.FC = ({ navigation }: any) => {
           data = await obtenerTareasDeEmpresa(user.empresaSeleccionada);
           break;
         case "asignadas":
-          data = await obtenerTareasAsignadas(user.uid, user.empresaSeleccionada);
+          data = await obtenerTareasAsignadas(
+            user.uid,
+            user.empresaSeleccionada
+          );
           break;
         case "creadas":
-          data = await obtenerTareasCreadasPor(user.uid, user.empresaSeleccionada);
+          data = await obtenerTareasCreadasPor(
+            user.uid,
+            user.empresaSeleccionada
+          );
           break;
       }
 
@@ -78,7 +84,12 @@ const TareasScreen: React.FC = ({ navigation }: any) => {
             <Text style={styles.prioridadText}>{item.prioridad}</Text>
           </View>
         </View>
-        <View style={[styles.estadoBadge, { backgroundColor: getEstadoColor(item.estado) }]}>
+        <View
+          style={[
+            styles.estadoBadge,
+            { backgroundColor: getEstadoColor(item.estado) },
+          ]}
+        >
           <Text style={styles.estadoText}>{item.estado}</Text>
         </View>
       </View>
@@ -99,7 +110,11 @@ const TareasScreen: React.FC = ({ navigation }: any) => {
 
         {item.fechaVencimiento && (
           <View style={styles.infoRow}>
-            <MaterialIcons name="event" size={16} color={COLORS.textSecondary} />
+            <MaterialIcons
+              name="event"
+              size={16}
+              color={COLORS.textSecondary}
+            />
             <Text style={styles.infoText}>
               {new Date(item.fechaVencimiento).toLocaleDateString("es-ES")}
             </Text>
@@ -177,7 +192,11 @@ const TareasScreen: React.FC = ({ navigation }: any) => {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <MaterialIcons name="assignment" size={64} color={COLORS.textSecondary} />
+            <MaterialIcons
+              name="assignment"
+              size={64}
+              color={COLORS.textSecondary}
+            />
             <Text style={styles.emptyText}>No hay tareas disponibles</Text>
           </View>
         }

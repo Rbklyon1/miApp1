@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
-import { obtenerUsuarioPorUid } from "../api/usuarioService";
+import React, { createContext, ReactNode, useContext, useState } from "react";
+import { obtenerUsuarioPorUid } from "../Services/usuarioService";
 
 export interface User {
   uid: string;
@@ -59,7 +59,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     try {
       const data = await obtenerUsuarioPorUid(uid);
       if (!data) {
-        console.log("⚠️ Usuario no encontrado en Firestore");
         return;
       }
 
@@ -78,7 +77,10 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
           : prev
       );
 
-      console.log("✅ Usuario recargado con departamento:", data.nombreDepartamento);
+      console.log(
+        "✅ Usuario recargado con departamento:",
+        data.nombreDepartamento
+      );
     } catch (error) {
       console.error("❌ Error recargando usuario:", error);
     }

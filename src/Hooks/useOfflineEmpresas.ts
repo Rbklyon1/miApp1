@@ -35,7 +35,7 @@
 
 //     try {
 //       const hayPendientes = await hayEmpresasODeptosPendientes();
-      
+
 //       if (hayPendientes) {
 //         console.log("🔄 Iniciando sincronización de empresas y departamentos...");
 //         setIsSyncingEmpresas(true);
@@ -76,15 +76,15 @@
 //   };
 // };
 import { useEffect, useState } from "react";
-import { useOffline } from "./useOffline";
-import {
-  sincronizarEmpresasPendientes,
-  sincronizarDepartamentosPendientes,
-  hayEmpresasODeptosPendientes,
-  obtenerCantidadEmpresasPendientes,
-  obtenerCantidadDeptosPendientes,
-} from "../api/offlineEmpresaService";
 import { Alert } from "react-native";
+import {
+  hayEmpresasODeptosPendientes,
+  obtenerCantidadDeptosPendientes,
+  obtenerCantidadEmpresasPendientes,
+  sincronizarDepartamentosPendientes,
+  sincronizarEmpresasPendientes,
+} from "../Services/offlineEmpresaService";
+import { useOffline } from "./useOffline";
 
 export const useOfflineEmpresas = () => {
   const { isOnline, isSyncing } = useOffline();
@@ -112,16 +112,20 @@ export const useOfflineEmpresas = () => {
 
     try {
       const hayPendientes = await hayEmpresasODeptosPendientes();
-      
+
       if (hayPendientes) {
-        console.log("🔄 Iniciando sincronización de empresas y departamentos...");
+        console.log(
+          "🔄 Iniciando sincronización de empresas y departamentos..."
+        );
         setIsSyncingEmpresas(true);
 
         const resultadoEmpresas = await sincronizarEmpresasPendientes();
         const resultadoDeptos = await sincronizarDepartamentosPendientes();
 
-        const totalExitosos = resultadoEmpresas.exitosos + resultadoDeptos.exitosos;
-        const totalFallidos = resultadoEmpresas.fallidos + resultadoDeptos.fallidos;
+        const totalExitosos =
+          resultadoEmpresas.exitosos + resultadoDeptos.exitosos;
+        const totalFallidos =
+          resultadoEmpresas.fallidos + resultadoDeptos.fallidos;
 
         if (totalExitosos > 0) {
           Alert.alert(

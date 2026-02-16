@@ -1,27 +1,27 @@
+import { MaterialIcons } from "@expo/vector-icons";
+import { StackNavigationProp } from "@react-navigation/stack";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth, db } from "../../api/firebaseConfig";
-import { COLORS, FONT_SIZES } from "../../types/index";
-import { StackNavigationProp } from "@react-navigation/stack";
-import { RootStackParamList } from "../../navigation/StackNavigator";
 import { useUser } from "../../context/UserContext";
-import { doc, setDoc } from "firebase/firestore";
-import { MaterialIcons } from "@expo/vector-icons";
+import { RootStackParamList } from "../../navigation/StackNavigator";
+import { auth, db } from "../../Services/firebaseConfig";
+import { COLORS, FONT_SIZES } from "../../types/index";
 
 //  Imports para offline
 import { useOffline } from "../../Hooks/useOffline";
-import { guardarUsuarioOffline } from "../../api/offlineAuthService";
+import { guardarUsuarioOffline } from "../../Services/offlineAuthService";
 
 type RegisterScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -46,7 +46,12 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
 
   const handleRegisterUser = async () => {
     // Validaciones
-    if (!nombre.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
+    if (
+      !nombre.trim() ||
+      !email.trim() ||
+      !password.trim() ||
+      !confirmPassword.trim()
+    ) {
       Alert.alert("Error", "Completa todos los campos.");
       return;
     }
@@ -93,12 +98,9 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
           rol: "Empleado",
         });
 
-        Alert.alert(
-          "✅ Éxito", 
-          "Cuenta creada correctamente.",
-          [{ text: "OK", onPress: () => navigation.replace("Empresa") }]
-        );
-
+        Alert.alert("✅ Éxito", "Cuenta creada correctamente.", [
+          { text: "OK", onPress: () => navigation.replace("Empresa") },
+        ]);
       } else {
         // ============ REGISTRO OFFLINE ============
         console.log("📴 Registrando usuario offline...");
@@ -120,16 +122,16 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
           "✅ Cuenta creada (Offline)",
           `Hola ${offlineUser.nombre}!\n\nTu cuenta se ha guardado localmente y se sincronizará automáticamente con Firebase cuando tengas conexión a internet.\n\nPor ahora podrás usar la app con funcionalidad limitada.`,
           [
-            { 
-              text: "Entendido", 
-              onPress: () => navigation.replace("Empresa") 
-            }
+            {
+              text: "Entendido",
+              onPress: () => navigation.replace("Empresa"),
+            },
           ]
         );
       }
     } catch (error: any) {
       console.error("❌ Error en registro:", error);
-      
+
       let mensaje = "Error al crear cuenta";
       if (error.code === "auth/email-already-in-use") {
         mensaje = "Este correo ya está registrado";
@@ -140,7 +142,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
       } else if (error.message) {
         mensaje = error.message;
       }
-      
+
       Alert.alert("Error", mensaje);
     } finally {
       setIsLoading(false);
@@ -231,7 +233,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={() => navigation.navigate("Login")}
           disabled={isLoading}
         >
@@ -243,12 +245,15 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
         {/* Información adicional en modo offline */}
         {!isOnline && (
           <View style={styles.offlineInfo}>
-            <MaterialIcons name="cloud-queue" size={24} color={COLORS.primary} />
-            <Text style={styles.offlineInfoTitle}>
-              📱 Registro Offline
-            </Text>
+            <MaterialIcons
+              name="cloud-queue"
+              size={24}
+              color={COLORS.primary}
+            />
+            <Text style={styles.offlineInfoTitle}>📱 Registro Offline</Text>
             <Text style={styles.offlineInfoText}>
-              Tu cuenta se guardará localmente y se sincronizará con Firebase automáticamente cuando recuperes la conexión a internet.
+              Tu cuenta se guardará localmente y se sincronizará con Firebase
+              automáticamente cuando recuperes la conexión a internet.
             </Text>
           </View>
         )}
@@ -258,15 +263,15 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: COLORS.background 
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
   },
-  content: { 
-    flex: 1, 
-    justifyContent: "center", 
-    alignItems: "center", 
-    padding: 20 
+  content: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
   },
   title: {
     fontSize: FONT_SIZES.xlarge,

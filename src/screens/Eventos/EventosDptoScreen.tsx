@@ -1,47 +1,54 @@
-import React, { useState, useEffect } from "react";
+import { MaterialIcons } from "@expo/vector-icons";
+import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
+  Alert,
   FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
   Modal,
   RefreshControl,
-  Alert,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
 import { useUser } from "../../context/UserContext";
-import { COLORS, FONT_SIZES } from "../../types";
-import { Evento, EstadoAsistencia } from "../../types/eventos";
 import {
-  obtenerEventosDepartamento,
-  obtenerEventosAsignadosDepartamento,
+  cargarDepartamentos,
+  Departamento,
+} from "../../Services/departamentosService";
+import {
   actualizarEstadoAsistencia,
   eliminarEvento,
-} from "../../api/eventosService";
-import { cargarDepartamentos, Departamento } from "../../api/departamentosService";
+  obtenerEventosAsignadosDepartamento,
+  obtenerEventosDepartamento,
+} from "../../Services/eventosService";
+import { COLORS, FONT_SIZES } from "../../types";
+import { EstadoAsistencia, Evento } from "../../types/eventos";
 
 const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
   const { user } = useUser();
   const [eventos, setEventos] = useState<Evento[]>([]);
   const [loading, setLoading] = useState(false);
-  const [vistaActual, setVistaActual] = useState<"todos" | "asignados">("todos");
+  const [vistaActual, setVistaActual] = useState<"todos" | "asignados">(
+    "todos"
+  );
 
   // Para administradores
   const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
-  const [deptoSeleccionado, setDeptoSeleccionado] = useState<string | null>(null);
+  const [deptoSeleccionado, setDeptoSeleccionado] = useState<string | null>(
+    null
+  );
   const [modalDeptosVisible, setModalDeptosVisible] = useState(false);
 
   const esAdmin = user?.rol === "Administrador";
   const esJefe = user?.rol === "Jefe";
   const puedeCrear = esAdmin || esJefe;
 
-  const departamentoActual = esAdmin 
-    ? deptoSeleccionado 
+  const departamentoActual = esAdmin
+    ? deptoSeleccionado
     : user?.nombreDepartamento;
 
-  // Cargar departamentos si es admin
+  // Cargar departamentos si es admin MEZCLA------------------------------------------------------------
   useEffect(() => {
     if (esAdmin && user?.empresaId) {
       cargarDepartamentos(user.empresaId)
@@ -55,17 +62,21 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
           Alert.alert("Error", "No se pudieron cargar los departamentos");
         });
     }
-  }, [esAdmin, user?.empresaId]);
+  }, [user?.empresaId]);
 
   const cargarEventos = async () => {
     if (!user?.empresaId || !departamentoActual) return;
 
-    try {
+    try {       //MEZCLA -----------------------------------------------------------------------------------
+
       setLoading(true);
       let data: Evento[];
 
       if (vistaActual === "todos") {
-        data = await obtenerEventosDepartamento(user.empresaId, departamentoActual);
+        data = await obtenerEventosDepartamento(
+          user.empresaId,
+          departamentoActual
+        );
       } else {
         data = await obtenerEventosAsignadosDepartamento(
           user.uid,
@@ -76,6 +87,7 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
 
       setEventos(data);
     } catch (error) {
+      //MEZCLA
       console.error("Error al cargar eventos:", error);
       Alert.alert("Error", "No se pudieron cargar los eventos");
     } finally {
@@ -83,7 +95,8 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
     }
   };
 
-  useEffect(() => {
+  useEffect(() => {       //MEZCLA -----------------------------------------------------------------------------------
+
     if (departamentoActual) {
       cargarEventos();
     }
@@ -98,7 +111,8 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
     eventoId: string,
     nuevoEstado: EstadoAsistencia
   ) => {
-    try {
+    try {       //MEZCLA -----------------------------------------------------------------------------------
+
       await actualizarEstadoAsistencia(eventoId, user?.uid || "", nuevoEstado);
       Alert.alert("Éxito", "Tu respuesta ha sido registrada");
       cargarEventos();
@@ -107,7 +121,8 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
     }
   };
 
-  const handleEliminar = (eventoId: string) => {
+  const handleEliminar = (eventoId: string) => {       //MEZCLA -----------------------------------------------------------------------------------
+
     Alert.alert(
       "Eliminar evento",
       "¿Estás seguro de que deseas eliminar este evento?",
@@ -216,7 +231,11 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyContainer}>
-          <MaterialIcons name="folder-open" size={80} color={COLORS.textSecondary} />
+          <MaterialIcons
+            name="folder-open"
+            size={80}
+            color={COLORS.textSecondary}
+          />
           <Text style={styles.emptyTitle}>No hay departamentos</Text>
           <Text style={styles.emptyText}>
             Aún no se han creado departamentos en esta empresa.{"\n"}
@@ -244,7 +263,11 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
                 {departamentoActual || "Selecciona departamento"}
               </Text>
               {esAdmin && (
-                <MaterialIcons name="expand-more" size={18} color={COLORS.primary} />
+                <MaterialIcons
+                  name="expand-more"
+                  size={18}
+                  color={COLORS.primary}
+                />
               )}
             </View>
           </View>
@@ -351,14 +374,22 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
             {/* Fecha y hora */}
             <View style={styles.fechaContainer}>
               <View style={styles.fechaItem}>
-                <MaterialIcons name="event" size={16} color={COLORS.textSecondary} />
+                <MaterialIcons
+                  name="event"
+                  size={16}
+                  color={COLORS.textSecondary}
+                />
                 <Text style={styles.fechaText}>
                   {formatearFecha(item.fechaInicio)}
                 </Text>
               </View>
 
               <View style={styles.fechaItem}>
-                <MaterialIcons name="access-time" size={16} color={COLORS.textSecondary} />
+                <MaterialIcons
+                  name="access-time"
+                  size={16}
+                  color={COLORS.textSecondary}
+                />
                 <Text style={styles.fechaText}>
                   {formatearHora(item.horaInicio)}
                 </Text>
@@ -373,15 +404,22 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
                 color={COLORS.textSecondary}
               />
               <Text style={styles.ubicacionText}>
-                {item.esVirtual ? "Evento virtual" : item.ubicacion || "Sin ubicación"}
+                {item.esVirtual
+                  ? "Evento virtual"
+                  : item.ubicacion || "Sin ubicación"}
               </Text>
             </View>
 
             {/* Asistentes */}
             <View style={styles.asistentesContainer}>
-              <MaterialIcons name="people" size={16} color={COLORS.textSecondary} />
+              <MaterialIcons
+                name="people"
+                size={16}
+                color={COLORS.textSecondary}
+              />
               <Text style={styles.asistentesText}>
-                {item.asistentes.length} asistente{item.asistentes.length !== 1 ? "s" : ""}
+                {item.asistentes.length} asistente
+                {item.asistentes.length !== 1 ? "s" : ""}
               </Text>
             </View>
 
@@ -414,7 +452,9 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
                         }
                       >
                         <MaterialIcons name="check" size={16} color="#fff" />
-                        <Text style={styles.respuestaButtonText}>Confirmar</Text>
+                        <Text style={styles.respuestaButtonText}>
+                          Confirmar
+                        </Text>
                       </TouchableOpacity>
 
                       <TouchableOpacity
@@ -434,7 +474,11 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
         )}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <MaterialIcons name="event" size={64} color={COLORS.textSecondary} />
+            <MaterialIcons
+              name="event"
+              size={64}
+              color={COLORS.textSecondary}
+            />
             <Text style={styles.emptyText}>
               No hay eventos en este departamento
             </Text>
@@ -481,13 +525,18 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
                   <Text
                     style={[
                       styles.deptoItemText,
-                      deptoSeleccionado === item.nombre && styles.deptoItemTextActive,
+                      deptoSeleccionado === item.nombre &&
+                        styles.deptoItemTextActive,
                     ]}
                   >
                     {item.nombre}
                   </Text>
                   {deptoSeleccionado === item.nombre && (
-                    <MaterialIcons name="check" size={24} color={COLORS.primary} />
+                    <MaterialIcons
+                      name="check"
+                      size={24}
+                      color={COLORS.primary}
+                    />
                   )}
                 </TouchableOpacity>
               )}

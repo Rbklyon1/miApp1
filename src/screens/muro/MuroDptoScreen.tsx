@@ -1,29 +1,32 @@
-import React, { useState, useEffect } from "react";
+import { MaterialIcons } from "@expo/vector-icons";
+import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  FlatList,
   Alert,
-  StyleSheet,
-  TouchableOpacity,
-  SafeAreaView,
-  StatusBar,
-  TextInput,
+  FlatList,
   Modal,
   RefreshControl,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
-import { COLORS, FONT_SIZES } from "../../types/index";
 import { useUser } from "../../context/UserContext";
-import { cargarDepartamentos, Departamento } from "../../api/departamentosService";
 import {
-  obtenerMuroDepartamento,
+  cargarDepartamentos,
+  Departamento,
+} from "../../Services/departamentosService";
+import {
+  agregarReaccion,
   crearPublicacion,
   editarPublicacion,
   eliminarPublicacion,
-  agregarReaccion,
+  obtenerMuroDepartamento,
   Publicacion,
-} from "../../api/publicacionesService";
+} from "../../Services/publicacionesService";
+import { COLORS, FONT_SIZES } from "../../types/index";
 
 const formatearFecha = (timestamp: any) => {
   if (!timestamp?.seconds) return "";
@@ -46,10 +49,12 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [postEditando, setPostEditando] = useState<Publicacion | null>(null);
   const [textoEditado, setTextoEditado] = useState("");
-  
+
   // Para administradores
   const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
-  const [deptoSeleccionado, setDeptoSeleccionado] = useState<string | null>(null);
+  const [deptoSeleccionado, setDeptoSeleccionado] = useState<string | null>(
+    null
+  );
   const [modalDeptosVisible, setModalDeptosVisible] = useState(false);
 
   const esAdmin = user?.rol === "Administrador";
@@ -57,8 +62,8 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
   const puedePublicar = esAdmin || esJefe;
 
   // Determinar qué departamento mostrar
-  const departamentoActual = esAdmin 
-    ? deptoSeleccionado 
+  const departamentoActual = esAdmin
+    ? deptoSeleccionado
     : user?.nombreDepartamento;
 
   // Cargar departamentos si es admin
@@ -85,17 +90,17 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
     }
 
     if (!user?.empresaId || !user?.idDepartamento) {
-  Alert.alert(
-    "Sin departamento",
-    "No tienes un departamento asignado. Contacta a tu administrador."
-  );
-  console.log("🔎 Cargando muro depto:", {
-  empresaId: user.empresaId,
-  departamentoId: user.idDepartamento,
-});
+      Alert.alert(
+        "Sin departamento",
+        "No tienes un departamento asignado. Contacta a tu administrador."
+      );
+      console.log("🔎 Cargando muro depto:", {
+        empresaId: user.empresaId,
+        departamentoId: user.idDepartamento,
+      });
 
-  return;
-}
+      return;
+    }
 
     try {
       setLoading(true);
@@ -114,8 +119,8 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
   };
 
   useEffect(() => {
-  cargarMuro();
-}, [user?.empresaId, user?.idDepartamento]);
+    cargarMuro();
+  }, [user?.empresaId, user?.idDepartamento]);
 
   const crearPost = async () => {
     if (!contenidoPost.trim() || !user?.empresaId || !departamentoActual) {
@@ -224,7 +229,11 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyContainer}>
-          <MaterialIcons name="business" size={80} color={COLORS.textSecondary} />
+          <MaterialIcons
+            name="business"
+            size={80}
+            color={COLORS.textSecondary}
+          />
           <Text style={styles.emptyTitle}>Sin departamento</Text>
           <Text style={styles.emptyText}>
             No tienes un departamento asignado.{"\n"}
@@ -240,7 +249,11 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyContainer}>
-          <MaterialIcons name="folder-open" size={80} color={COLORS.textSecondary} />
+          <MaterialIcons
+            name="folder-open"
+            size={80}
+            color={COLORS.textSecondary}
+          />
           <Text style={styles.emptyTitle}>No hay departamentos</Text>
           <Text style={styles.emptyText}>
             Aún no se han creado departamentos en esta empresa.{"\n"}
@@ -270,7 +283,11 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
                 {departamentoActual || "Selecciona departamento"}
               </Text>
               {esAdmin && (
-                <MaterialIcons name="expand-more" size={18} color={COLORS.primary} />
+                <MaterialIcons
+                  name="expand-more"
+                  size={18}
+                  color={COLORS.primary}
+                />
               )}
             </View>
           </View>
@@ -316,11 +333,19 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
               {puedeModificar(item) && (
                 <View style={styles.postActions}>
                   <TouchableOpacity onPress={() => handleEditar(item)}>
-                    <MaterialIcons name="edit" size={20} color={COLORS.primary} />
+                    <MaterialIcons
+                      name="edit"
+                      size={20}
+                      color={COLORS.primary}
+                    />
                   </TouchableOpacity>
 
                   <TouchableOpacity onPress={() => handleEliminar(item.id)}>
-                    <MaterialIcons name="delete" size={20} color={COLORS.error} />
+                    <MaterialIcons
+                      name="delete"
+                      size={20}
+                      color={COLORS.error}
+                    />
                   </TouchableOpacity>
                 </View>
               )}
@@ -404,7 +429,7 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <Text style={styles.modalTitle}>Seleccionar Departamento</Text>
-            
+
             <FlatList
               data={departamentos}
               keyExtractor={(item) => item.id}
@@ -428,13 +453,18 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
                   <Text
                     style={[
                       styles.deptoItemText,
-                      deptoSeleccionado === item.nombre && styles.deptoItemTextActive,
+                      deptoSeleccionado === item.nombre &&
+                        styles.deptoItemTextActive,
                     ]}
                   >
                     {item.nombre}
                   </Text>
                   {deptoSeleccionado === item.nombre && (
-                    <MaterialIcons name="check" size={24} color={COLORS.primary} />
+                    <MaterialIcons
+                      name="check"
+                      size={24}
+                      color={COLORS.primary}
+                    />
                   )}
                 </TouchableOpacity>
               )}

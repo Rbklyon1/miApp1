@@ -1,20 +1,20 @@
-import React, { useState, useEffect, useCallback } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-  RefreshControl,
-} from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
+import React, { useCallback, useEffect, useState } from "react";
+import {
+  Alert,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useUser } from "../../context/UserContext";
 import {
-  obtenerEventosDeEmpresa,
   obtenerEventosAsignados,
   obtenerEventosCreadosPor,
-} from "../../api/eventosService";
+  obtenerEventosDeEmpresa,
+} from "../../Services/eventosService";
 import { Evento } from "../../types/eventos";
 import { COLORS, FONT_SIZES } from "../../types/index";
 
@@ -46,10 +46,16 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
           data = await obtenerEventosDeEmpresa(user.empresaSeleccionada);
           break;
         case "asignados":
-          data = await obtenerEventosAsignados(user.uid, user.empresaSeleccionada);
+          data = await obtenerEventosAsignados(
+            user.uid,
+            user.empresaSeleccionada
+          );
           break;
         case "creados":
-          data = await obtenerEventosCreadosPor(user.uid, user.empresaSeleccionada);
+          data = await obtenerEventosCreadosPor(
+            user.uid,
+            user.empresaSeleccionada
+          );
           break;
       }
 
@@ -91,12 +97,16 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
 
   const renderEvento = ({ item }: { item: Evento }) => {
     const isPasado = esEventoPasado(item.fechaInicio);
-    const miEstado = item.asistentes.find((a) => a.uid === user?.uid)?.estadoAsistencia;
+    const miEstado = item.asistentes.find(
+      (a) => a.uid === user?.uid
+    )?.estadoAsistencia;
 
     return (
       <TouchableOpacity
         style={[styles.eventoCard, isPasado && styles.eventoCardPasado]}
-        onPress={() => navigation.navigate("DetalleEvento", { eventoId: item.id })}
+        onPress={() =>
+          navigation.navigate("DetalleEvento", { eventoId: item.id })
+        }
       >
         <View style={styles.eventoHeader}>
           <View style={styles.eventoHeaderLeft}>
@@ -122,7 +132,11 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
 
         <View style={styles.eventoFooter}>
           <View style={styles.infoRow}>
-            <MaterialIcons name="event" size={16} color={COLORS.textSecondary} />
+            <MaterialIcons
+              name="event"
+              size={16}
+              color={COLORS.textSecondary}
+            />
             <Text style={styles.infoText}>
               {formatearFecha(item.fechaInicio)} • {item.horaInicio}
             </Text>
@@ -140,9 +154,14 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
           </View>
 
           <View style={styles.infoRow}>
-            <MaterialIcons name="people" size={16} color={COLORS.textSecondary} />
+            <MaterialIcons
+              name="people"
+              size={16}
+              color={COLORS.textSecondary}
+            />
             <Text style={styles.infoText}>
-              {item.asistentes.length} asistente{item.asistentes.length !== 1 ? "s" : ""}
+              {item.asistentes.length} asistente
+              {item.asistentes.length !== 1 ? "s" : ""}
             </Text>
           </View>
 
@@ -254,7 +273,11 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <MaterialIcons name="event-busy" size={64} color={COLORS.textSecondary} />
+            <MaterialIcons
+              name="event-busy"
+              size={64}
+              color={COLORS.textSecondary}
+            />
             <Text style={styles.emptyText}>No hay eventos disponibles</Text>
           </View>
         }

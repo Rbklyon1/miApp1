@@ -1,41 +1,45 @@
-import React, { useState, useEffect } from "react";
+import { MaterialIcons } from "@expo/vector-icons";
+import React, { useEffect, useState } from "react";
 import {
-  View,
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  Alert,
-  Modal,
+  View,
 } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
 // DateTimePicker removido - usando implementación manual
 import { useUser } from "../../context/UserContext";
-import { crearTarea } from "../../api/tareasService";
-import { obtenerUsuariosDeEmpresa } from "../../api/empresaService";
+import { obtenerUsuariosDeEmpresa } from "../../Services/empresaService";
+import { crearTarea } from "../../Services/tareasService";
 import { COLORS, FONT_SIZES } from "../../types/index";
 import { PrioridadTarea } from "../../types/tareas";
 
 const CrearTareaScreen: React.FC = ({ navigation }: any) => {
   const { user } = useUser();
-  
+
   // Estados del formulario
   const [titulo, setTitulo] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [prioridad, setPrioridad] = useState<PrioridadTarea>("Media");
   const [fechaVencimiento, setFechaVencimiento] = useState<Date | undefined>();
   const [mostrarModalFecha, setMostrarModalFecha] = useState(false);
-  
+
   // Estados para el selector de fecha manual
   const [diaSeleccionado, setDiaSeleccionado] = useState(new Date().getDate());
   const [mesSeleccionado, setMesSeleccionado] = useState(new Date().getMonth());
-  const [anioSeleccionado, setAnioSeleccionado] = useState(new Date().getFullYear());
-  
+  const [anioSeleccionado, setAnioSeleccionado] = useState(
+    new Date().getFullYear()
+  );
+
   // Lista de usuarios disponibles
   const [usuariosDisponibles, setUsuariosDisponibles] = useState<any[]>([]);
-  const [usuariosSeleccionados, setUsuariosSeleccionados] = useState<string[]>([]);
-  
+  const [usuariosSeleccionados, setUsuariosSeleccionados] = useState<string[]>(
+    []
+  );
+
   const [isLoading, setIsLoading] = useState(false);
 
   // Cargar usuarios de la empresa
@@ -53,7 +57,9 @@ const CrearTareaScreen: React.FC = ({ navigation }: any) => {
             setUsuariosDisponibles(usuarios);
           }
         })
-        .catch(() => Alert.alert("Error", "No se pudieron cargar los usuarios"));
+        .catch(() =>
+          Alert.alert("Error", "No se pudieron cargar los usuarios")
+        );
     }
   }, [user?.empresaSeleccionada, user?.rol]);
 
@@ -61,14 +67,16 @@ const CrearTareaScreen: React.FC = ({ navigation }: any) => {
 
   const toggleUsuario = (uid: string) => {
     setUsuariosSeleccionados((prev) =>
-      prev.includes(uid)
-        ? prev.filter((id) => id !== uid)
-        : [...prev, uid]
+      prev.includes(uid) ? prev.filter((id) => id !== uid) : [...prev, uid]
     );
   };
 
   const confirmarFecha = () => {
-    const nuevaFecha = new Date(anioSeleccionado, mesSeleccionado, diaSeleccionado);
+    const nuevaFecha = new Date(
+      anioSeleccionado,
+      mesSeleccionado,
+      diaSeleccionado
+    );
     setFechaVencimiento(nuevaFecha);
     setMostrarModalFecha(false);
   };
@@ -79,8 +87,18 @@ const CrearTareaScreen: React.FC = ({ navigation }: any) => {
   };
 
   const meses = [
-    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
   ];
 
   const obtenerDiasDelMes = (mes: number, anio: number) => {
@@ -208,7 +226,11 @@ const CrearTareaScreen: React.FC = ({ navigation }: any) => {
 
             {/* Selector de Año */}
             <Text style={styles.pickerLabel}>Año</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pickerScroll}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.pickerScroll}
+            >
               {[2024, 2025, 2026, 2027].map((anio) => (
                 <TouchableOpacity
                   key={anio}
@@ -221,7 +243,8 @@ const CrearTareaScreen: React.FC = ({ navigation }: any) => {
                   <Text
                     style={[
                       styles.pickerButtonText,
-                      anioSeleccionado === anio && styles.pickerButtonTextActive,
+                      anioSeleccionado === anio &&
+                        styles.pickerButtonTextActive,
                     ]}
                   >
                     {anio}
@@ -232,7 +255,11 @@ const CrearTareaScreen: React.FC = ({ navigation }: any) => {
 
             {/* Selector de Mes */}
             <Text style={styles.pickerLabel}>Mes</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pickerScroll}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.pickerScroll}
+            >
               {meses.map((mes, index) => (
                 <TouchableOpacity
                   key={mes}
@@ -245,7 +272,8 @@ const CrearTareaScreen: React.FC = ({ navigation }: any) => {
                   <Text
                     style={[
                       styles.pickerButtonText,
-                      mesSeleccionado === index && styles.pickerButtonTextActive,
+                      mesSeleccionado === index &&
+                        styles.pickerButtonTextActive,
                     ]}
                   >
                     {mes}
@@ -256,9 +284,15 @@ const CrearTareaScreen: React.FC = ({ navigation }: any) => {
 
             {/* Selector de Día */}
             <Text style={styles.pickerLabel}>Día</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pickerScroll}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.pickerScroll}
+            >
               {Array.from(
-                { length: obtenerDiasDelMes(mesSeleccionado, anioSeleccionado) },
+                {
+                  length: obtenerDiasDelMes(mesSeleccionado, anioSeleccionado),
+                },
                 (_, i) => i + 1
               ).map((dia) => (
                 <TouchableOpacity
@@ -282,10 +316,16 @@ const CrearTareaScreen: React.FC = ({ navigation }: any) => {
             </ScrollView>
 
             <View style={styles.modalButtons}>
-              <TouchableOpacity style={styles.modalButtonSecondary} onPress={limpiarFecha}>
+              <TouchableOpacity
+                style={styles.modalButtonSecondary}
+                onPress={limpiarFecha}
+              >
                 <Text style={styles.modalButtonSecondaryText}>Limpiar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalButtonPrimary} onPress={confirmarFecha}>
+              <TouchableOpacity
+                style={styles.modalButtonPrimary}
+                onPress={confirmarFecha}
+              >
                 <Text style={styles.modalButtonPrimaryText}>Confirmar</Text>
               </TouchableOpacity>
             </View>
@@ -323,7 +363,11 @@ const CrearTareaScreen: React.FC = ({ navigation }: any) => {
             <Text style={styles.usuarioRol}>{usuario.rol}</Text>
           </View>
           {usuariosSeleccionados.includes(usuario.uid) && (
-            <MaterialIcons name="check-circle" size={24} color={COLORS.primary} />
+            <MaterialIcons
+              name="check-circle"
+              size={24}
+              color={COLORS.primary}
+            />
           )}
         </TouchableOpacity>
       ))}
@@ -345,7 +389,7 @@ const CrearTareaScreen: React.FC = ({ navigation }: any) => {
 
 const getPrioridadColor = (prioridad: PrioridadTarea, isActive: boolean) => {
   if (!isActive) return "#f0f0f0";
-  
+
   switch (prioridad) {
     case "Baja":
       return "#4CAF50";

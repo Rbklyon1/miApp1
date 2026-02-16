@@ -1,31 +1,29 @@
+import { MaterialIcons } from "@expo/vector-icons";
+import { doc, getDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
   Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
   TextInput,
-  ActivityIndicator,
-  Linking,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
 import { useUser } from "../../context/UserContext";
+import { db } from "../../Services/firebaseConfig";
 import {
   actualizarEstadoTarea,
   agregarComentario,
   eliminarTarea,
-} from "../../api/tareasService";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "../../api/firebaseConfig";
-import { Tarea, EstadoTarea } from "../../types/tareas";
+} from "../../Services/tareasService";
 import { COLORS, FONT_SIZES } from "../../types";
+import { EstadoTarea, Tarea } from "../../types/tareas";
 
 const DetalleTareaScreen: React.FC = ({ route, navigation }: any) => {
   const { tareaId } = route.params;
   const { user } = useUser();
-  
+
   const [tarea, setTarea] = useState<Tarea | null>(null);
   const [loading, setLoading] = useState(true);
   const [comentario, setComentario] = useState("");
@@ -37,7 +35,7 @@ const DetalleTareaScreen: React.FC = ({ route, navigation }: any) => {
     try {
       const tareaRef = doc(db, "Tareas", tareaId);
       const tareaSnap = await getDoc(tareaRef);
-      
+
       if (tareaSnap.exists()) {
         setTarea({ id: tareaSnap.id, ...tareaSnap.data() } as Tarea);
       } else {
@@ -52,25 +50,21 @@ const DetalleTareaScreen: React.FC = ({ route, navigation }: any) => {
   };
 
   const handleCambiarEstado = (nuevoEstado: EstadoTarea) => {
-    Alert.alert(
-      "Cambiar estado",
-      `¿Cambiar estado a "${nuevoEstado}"?`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Confirmar",
-          onPress: async () => {
-            try {
-              await actualizarEstadoTarea(tareaId, nuevoEstado);
-              await cargarTarea();
-              Alert.alert("Éxito", "Estado actualizado");
-            } catch {
-              Alert.alert("Error", "No se pudo actualizar el estado");
-            }
-          },
+    Alert.alert("Cambiar estado", `¿Cambiar estado a "${nuevoEstado}"?`, [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Confirmar",
+        onPress: async () => {
+          try {
+            await actualizarEstadoTarea(tareaId, nuevoEstado);
+            await cargarTarea();
+            Alert.alert("Éxito", "Estado actualizado");
+          } catch {
+            Alert.alert("Error", "No se pudo actualizar el estado");
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleAgregarComentario = async () => {
@@ -82,7 +76,7 @@ const DetalleTareaScreen: React.FC = ({ route, navigation }: any) => {
         autorUid: user?.uid!,
         autorNombre: user?.nombre!,
       });
-      
+
       setComentario("");
       await cargarTarea();
       Alert.alert("Éxito", "Comentario agregado");
@@ -117,10 +111,16 @@ const DetalleTareaScreen: React.FC = ({ route, navigation }: any) => {
 
   if (!tarea) return null;
 
-  const puedeEditar = user?.uid === tarea.creadaPor || user?.rol === "Administrador";
+  const puedeEditar =
+    user?.uid === tarea.creadaPor || user?.rol === "Administrador";
   const esAsignado = tarea.asignadoA.includes(user?.uid!);
 
-  const estados: EstadoTarea[] = ["Pendiente", "En Progreso", "Completada", "Cancelada"];
+  const estados: EstadoTarea[] = [
+    "Pendiente",
+    "En Progreso",
+    "Completada",
+    "Cancelada",
+  ];
 
   return (
     <ScrollView style={styles.container}>
@@ -128,10 +128,20 @@ const DetalleTareaScreen: React.FC = ({ route, navigation }: any) => {
       <View style={styles.header}>
         <Text style={styles.titulo}>{tarea.titulo}</Text>
         <View style={styles.badges}>
-          <View style={[styles.prioridadBadge, { backgroundColor: getPrioridadColor(tarea.prioridad) }]}>
+          <View
+            style={[
+              styles.prioridadBadge,
+              { backgroundColor: getPrioridadColor(tarea.prioridad) },
+            ]}
+          >
             <Text style={styles.badgeText}>{tarea.prioridad}</Text>
           </View>
-          <View style={[styles.estadoBadge, { backgroundColor: getEstadoColor(tarea.estado) }]}>
+          <View
+            style={[
+              styles.estadoBadge,
+              { backgroundColor: getEstadoColor(tarea.estado) },
+            ]}
+          >
             <Text style={styles.badgeText}>{tarea.estado}</Text>
           </View>
         </View>
@@ -148,7 +158,7 @@ const DetalleTareaScreen: React.FC = ({ route, navigation }: any) => {
       {/* Información */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Información</Text>
-        
+
         <View style={styles.infoRow}>
           <MaterialIcons name="person" size={20} color={COLORS.primary} />
           <Text style={styles.infoLabel}>Creado por:</Text>
@@ -158,11 +168,17 @@ const DetalleTareaScreen: React.FC = ({ route, navigation }: any) => {
         <View style={styles.infoRow}>
           <MaterialIcons name="group" size={20} color={COLORS.primary} />
           <Text style={styles.infoLabel}>Asignado a:</Text>
-          <Text style={styles.infoValue}>{tarea.nombresAsignados?.join(", ")}</Text>
+          <Text style={styles.infoValue}>
+            {tarea.nombresAsignados?.join(", ")}
+          </Text>
         </View>
 
         <View style={styles.infoRow}>
-          <MaterialIcons name="calendar-today" size={20} color={COLORS.primary} />
+          <MaterialIcons
+            name="calendar-today"
+            size={20}
+            color={COLORS.primary}
+          />
           <Text style={styles.infoLabel}>Creado:</Text>
           <Text style={styles.infoValue}>
             {new Date(tarea.fechaCreacion).toLocaleDateString("es-ES")}
@@ -241,7 +257,10 @@ const DetalleTareaScreen: React.FC = ({ route, navigation }: any) => {
       {/* Acciones de admin */}
       {puedeEditar && (
         <View style={styles.section}>
-          <TouchableOpacity style={styles.eliminarButton} onPress={handleEliminar}>
+          <TouchableOpacity
+            style={styles.eliminarButton}
+            onPress={handleEliminar}
+          >
             <MaterialIcons name="delete" size={22} color="#fff" />
             <Text style={styles.eliminarText}>Eliminar tarea</Text>
           </TouchableOpacity>
@@ -253,21 +272,31 @@ const DetalleTareaScreen: React.FC = ({ route, navigation }: any) => {
 
 const getPrioridadColor = (prioridad: string) => {
   switch (prioridad) {
-    case "Baja": return "#4CAF50";
-    case "Media": return "#FF9800";
-    case "Alta": return "#FF5722";
-    case "Urgente": return "#D32F2F";
-    default: return "#9E9E9E";
+    case "Baja":
+      return "#4CAF50";
+    case "Media":
+      return "#FF9800";
+    case "Alta":
+      return "#FF5722";
+    case "Urgente":
+      return "#D32F2F";
+    default:
+      return "#9E9E9E";
   }
 };
 
 const getEstadoColor = (estado: EstadoTarea) => {
   switch (estado) {
-    case "Pendiente": return "#FFC107";
-    case "En Progreso": return "#2196F3";
-    case "Completada": return "#4CAF50";
-    case "Cancelada": return "#9E9E9E";
-    default: return "#9E9E9E";
+    case "Pendiente":
+      return "#FFC107";
+    case "En Progreso":
+      return "#2196F3";
+    case "Completada":
+      return "#4CAF50";
+    case "Cancelada":
+      return "#9E9E9E";
+    default:
+      return "#9E9E9E";
   }
 };
 
@@ -424,7 +453,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: FONT_SIZES.medium,
     fontWeight: "bold",
-  }
+  },
 });
 
 export default DetalleTareaScreen;

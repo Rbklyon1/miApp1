@@ -1,19 +1,19 @@
+import { MaterialIcons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
-  View,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  Alert,
-  Switch,
+  View,
 } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
 import { useUser } from "../../context/UserContext";
-import { crearAviso } from "../../api/avisosService";
-import { COLORS, FONT_SIZES } from "../../types/index";
+import { crearAviso } from "../../Services/avisosService";
 import { TipoMuro } from "../../types/avisos";
+import { COLORS, FONT_SIZES } from "../../types/index";
 
 const CrearAvisoScreen: React.FC = ({ navigation }: any) => {
   const { user } = useUser();
@@ -59,7 +59,8 @@ const CrearAvisoScreen: React.FC = ({ navigation }: any) => {
           titulo,
           contenido,
           tipoMuro,
-          departamento: tipoMuro === "Departamento" ? user?.nombreDepartamento : undefined,
+          departamento:
+            tipoMuro === "Departamento" ? user?.nombreDepartamento : undefined,
           destacado: esAdmin ? destacado : false, // Solo admins pueden destacar
         },
         user?.uid!,
@@ -128,7 +129,11 @@ const CrearAvisoScreen: React.FC = ({ navigation }: any) => {
           >
             <View style={styles.radioLeft}>
               <MaterialIcons
-                name={tipoMuro === "General" ? "radio-button-checked" : "radio-button-unchecked"}
+                name={
+                  tipoMuro === "General"
+                    ? "radio-button-checked"
+                    : "radio-button-unchecked"
+                }
                 size={24}
                 color={tipoMuro === "General" ? COLORS.primary : "#999"}
               />
@@ -151,14 +156,19 @@ const CrearAvisoScreen: React.FC = ({ navigation }: any) => {
           >
             <View style={styles.radioLeft}>
               <MaterialIcons
-                name={tipoMuro === "Departamento" ? "radio-button-checked" : "radio-button-unchecked"}
+                name={
+                  tipoMuro === "Departamento"
+                    ? "radio-button-checked"
+                    : "radio-button-unchecked"
+                }
                 size={24}
                 color={tipoMuro === "Departamento" ? COLORS.primary : "#999"}
               />
               <View style={styles.radioTextContainer}>
                 <Text style={styles.radioTitle}>Muro de Departamento</Text>
                 <Text style={styles.radioSubtitle}>
-                  Solo visible para {user?.nombreDepartamento || "tu departamento"}
+                  Solo visible para{" "}
+                  {user?.nombreDepartamento || "tu departamento"}
                 </Text>
               </View>
             </View>

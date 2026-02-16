@@ -1,42 +1,45 @@
+import { MaterialIcons } from "@expo/vector-icons";
+import { CommonActions, useNavigation } from "@react-navigation/native";
+import type { StackNavigationProp } from "@react-navigation/stack";
+import { createStackNavigator } from "@react-navigation/stack";
+import { signOut } from "firebase/auth";
 import React, { useState } from "react";
 import {
-  TouchableOpacity,
-  View,
-  Text,
+  Alert,
   Modal,
   Pressable,
-  TextInput,
-  Alert,
   StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { createStackNavigator} from "@react-navigation/stack";
-import { useNavigation, CommonActions } from "@react-navigation/native";
-import { MaterialIcons } from "@expo/vector-icons";
-import { COLORS, FONT_SIZES } from "../types/index";
-import { auth } from "../api/firebaseConfig";
 import { useUser } from "../context/UserContext";
-import { crearEmpresa, vincularUsuarioAEmpresa,buscarEmpresaPorCodigo} from "../api/empresaService";
-import type { StackNavigationProp } from "@react-navigation/stack";
-import { signOut } from "firebase/auth";
+import {
+  buscarEmpresaPorCodigo,
+  crearEmpresa,
+  vincularUsuarioAEmpresa,
+} from "../Services/empresaService";
+import { auth } from "../Services/firebaseConfig";
+import { COLORS, FONT_SIZES } from "../types/index";
 
-
-//Pantallas 
-import HomeScreen from "../screens/home/HomeScreen";
-import ProfileScreen from "../screens/profile/ProfileScreen";
+//Pantallas
 import LoginScreen from "../screens/Auth/LoginScreen";
 import RegisterScreen from "../screens/Auth/RegisterScreen";
 import EmpresaScreen from "../screens/Empresa/EmpresaScreen";
 import GestionPermisosScreen from "../screens/Empresa/GestionPermisos";
 import GestionUsuariosScreen from "../screens/Empresa/GestionUsuariosScreen";
-import TareasScreen from "../screens/Tareas/TareasScreen";
-import CrearTareaScreen from "../screens/Tareas/CrearTareaScreen";
-import DetalleTareaScreen from "../screens/Tareas/DetalleTareaScreen";
-import EventosScreen from "../screens/Eventos/EventosScreen";
 import CrearEventoScreen from "../screens/Eventos/CrearEventoScreen";
 import DetalleEventoScreen from "../screens/Eventos/DetalleEventoScreen";
-import MuroDepartamentoScreen from "../screens/muro/MuroDptoScreen";
-import TareasDeptoScreen  from "../screens/Tareas/TareasDptoScreen";
 import EventosDeptoScreen from "../screens/Eventos/EventosDptoScreen";
+import EventosScreen from "../screens/Eventos/EventosScreen";
+import HomeScreen from "../screens/home/HomeScreen";
+import MuroDepartamentoScreen from "../screens/muro/MuroDptoScreen";
+import ProfileScreen from "../screens/profile/ProfileScreen";
+import CrearTareaScreen from "../screens/Tareas/CrearTareaScreen";
+import DetalleTareaScreen from "../screens/Tareas/DetalleTareaScreen";
+import TareasDeptoScreen from "../screens/Tareas/TareasDptoScreen";
+import TareasScreen from "../screens/Tareas/TareasScreen";
 
 //  Tipo de parámetros de navegación
 export type RootStackParamList = {
@@ -44,22 +47,21 @@ export type RootStackParamList = {
   Register: undefined;
   Home: undefined;
   Profile: undefined;
-  Empresa:undefined;
-  GestionPermisos:undefined;
-  GestionUsuarios:undefined;
+  Empresa: undefined;
+  GestionPermisos: undefined;
+  GestionUsuarios: undefined;
   Tareas: undefined;
   CrearTarea: undefined;
-  DetalleTarea: { tareaId: string};
+  DetalleTarea: { tareaId: string };
   Eventos: undefined;
   CrearEvento: undefined;
   DetalleEvento: { eventoId: string };
-  MuroDpto:undefined;
+  MuroDpto: undefined;
   TareaDpto: undefined;
   EventoDpto: undefined;
-  };
+};
 
 const Stack = createStackNavigator<RootStackParamList>();
-
 
 const StackNavigator: React.FC = () => {
   // Estados para el menú y modales
@@ -74,22 +76,22 @@ const StackNavigator: React.FC = () => {
   const { user, setUser } = useUser();
 
   //  Cerrar sesión
-const handleLogout = async () => {
-  try {
-    await signOut(auth);
-    setUser(null);
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setUser(null);
 
-    navigation.dispatch(
-      CommonActions.reset({
-        index: 0,
-        routes: [{ name: "Login" }],
-      })
-    );
-  } catch (error: any) {
-    console.error("Error al cerrar sesión:", error.message);
-    Alert.alert("Error", "No se pudo cerrar la sesión.");
-  }
-};
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: "Login" }],
+        })
+      );
+    } catch (error: any) {
+      console.error("Error al cerrar sesión:", error.message);
+      Alert.alert("Error", "No se pudo cerrar la sesión.");
+    }
+  };
 
   //  Crear empresa y vincular usuario
   const handleCrearEmpresa = async () => {
@@ -132,46 +134,46 @@ const handleLogout = async () => {
     }
   };
 
-
-const handleUnirseEmpresa = async () => {
-  if (!codigoUnirse.trim()) {
-    Alert.alert("Error", "Por favor ingresa un código de empresa.");
-    return;
-  }
-
-  try {
-    const empresa = await buscarEmpresaPorCodigo(codigoUnirse.trim());
-    if (!empresa) {
-      Alert.alert("Error", "No existe ninguna empresa con ese código.");
+  const handleUnirseEmpresa = async () => {
+    if (!codigoUnirse.trim()) {
+      Alert.alert("Error", "Por favor ingresa un código de empresa.");
       return;
     }
 
-    //  Vincular usuario actual
-    await vincularUsuarioAEmpresa(
-      auth.currentUser?.uid || "",
-      user?.nombre || "",
-      user?.correo || "",
-      empresa.id,
-      "Empleado"    );
+    try {
+      const empresa = await buscarEmpresaPorCodigo(codigoUnirse.trim());
+      if (!empresa) {
+        Alert.alert("Error", "No existe ninguna empresa con ese código.");
+        return;
+      }
 
-    //  Actualizar contexto
-    setUser({
-      ...user!,
-      rol: "Empleado",
-      empresaId: empresa.id,
-      empresaNombre: empresa.nombre,
-    });
+      //  Vincular usuario actual
+      await vincularUsuarioAEmpresa(
+        auth.currentUser?.uid || "",
+        user?.nombre || "",
+        user?.correo || "",
+        empresa.id,
+        "Empleado"
+      );
 
-    Alert.alert("Éxito", `Te uniste a ${empresa.nombre}`);
-    setUnirseModal(false);
-    setCodigoUnirse("");
-  } catch (error) {
-    console.error(" Error al unirse:", error);
-    Alert.alert("Error", "No se pudo unir a la empresa.");
-  }
-};
+      //  Actualizar contexto
+      setUser({
+        ...user!,
+        rol: "Empleado",
+        empresaId: empresa.id,
+        empresaNombre: empresa.nombre,
+      });
 
-console.log("USER EN STACK:", user);
+      Alert.alert("Éxito", `Te uniste a ${empresa.nombre}`);
+      setUnirseModal(false);
+      setCodigoUnirse("");
+    } catch (error) {
+      console.error(" Error al unirse:", error);
+      Alert.alert("Error", "No se pudo unir a la empresa.");
+    }
+  };
+
+  console.log("USER EN STACK:", user);
 
   return (
     <>
@@ -227,53 +229,53 @@ console.log("USER EN STACK:", user);
         <Stack.Screen
           name="GestionUsuarios"
           component={GestionUsuariosScreen}
-          options={{title: "Gestión de Usuarios"}
-        }/>
-        <Stack.Screen
-            name="Tareas"
-            component={TareasScreen}
-            options={{ title: "Tareas" }}
+          options={{ title: "Gestión de Usuarios" }}
         />
         <Stack.Screen
-            name="CrearTarea"
-            component={CrearTareaScreen}
-            options={{ title: "Nueva Tarea" }}
+          name="Tareas"
+          component={TareasScreen}
+          options={{ title: "Tareas" }}
         />
         <Stack.Screen
-            name="DetalleTarea"
-            component={DetalleTareaScreen}
-            options={{ title: "Detalle de Tarea" }}
+          name="CrearTarea"
+          component={CrearTareaScreen}
+          options={{ title: "Nueva Tarea" }}
         />
         <Stack.Screen
-            name="Eventos"
-            component={EventosScreen}
-            options={{ title: "Eventos" }}
+          name="DetalleTarea"
+          component={DetalleTareaScreen}
+          options={{ title: "Detalle de Tarea" }}
         />
         <Stack.Screen
-            name="CrearEvento"
-            component={CrearEventoScreen}
-            options={{ title: "Nuevo Evento" }}
+          name="Eventos"
+          component={EventosScreen}
+          options={{ title: "Eventos" }}
         />
         <Stack.Screen
-            name="DetalleEvento"
-            component={DetalleEventoScreen}
-            options={{ title: "Detalle del Evento" }}
+          name="CrearEvento"
+          component={CrearEventoScreen}
+          options={{ title: "Nuevo Evento" }}
         />
         <Stack.Screen
-            name="MuroDpto"
-            component={MuroDepartamentoScreen}
-            options={{title: "Muro Departamental"}}
-          />
+          name="DetalleEvento"
+          component={DetalleEventoScreen}
+          options={{ title: "Detalle del Evento" }}
+        />
         <Stack.Screen
-            name="TareaDpto"
-            component={TareasDeptoScreen}
-            options={{title: "Tareas Departamental"}}
-          />        
+          name="MuroDpto"
+          component={MuroDepartamentoScreen}
+          options={{ title: "Muro Departamental" }}
+        />
         <Stack.Screen
-            name="EventoDpto"
-            component={EventosDeptoScreen}
-            options={{title: "Evento Departamental"}}
-          />
+          name="TareaDpto"
+          component={TareasDeptoScreen}
+          options={{ title: "Tareas Departamental" }}
+        />
+        <Stack.Screen
+          name="EventoDpto"
+          component={EventosDeptoScreen}
+          options={{ title: "Evento Departamental" }}
+        />
       </Stack.Navigator>
 
       {/*  Modal del Menú */}
@@ -292,16 +294,17 @@ console.log("USER EN STACK:", user);
               style={styles.menuOption}
               onPress={() => {
                 setMenuVisible(false);
-                navigation.navigate("Profile"); 
+                navigation.navigate("Profile");
               }}
             >
               <MaterialIcons name="person" size={22} color={COLORS.primary} />
               <Text style={styles.menuText}>Mi Perfil</Text>
             </Pressable>
-            
+
             {/* Muro departamental */}
-            {user && user.rol !== "Administrador" && (
-              user.idDepartamento ? (
+            {user &&
+              user.rol !== "Administrador" &&
+              (user.idDepartamento ? (
                 <Pressable
                   style={styles.menuOption}
                   onPress={() => {
@@ -309,18 +312,27 @@ console.log("USER EN STACK:", user);
                     navigation.navigate("MuroDpto");
                   }}
                 >
-                  <MaterialIcons name="groups" size={22} color={COLORS.primary} />
+                  <MaterialIcons
+                    name="groups"
+                    size={22}
+                    color={COLORS.primary}
+                  />
                   <Text style={styles.menuText}>Muro de mi departamento</Text>
                 </Pressable>
               ) : (
                 <View style={styles.menuOption}>
-                  <MaterialIcons name="info" size={22} color={COLORS.textSecondary} />
-                  <Text style={[styles.menuText, { color: COLORS.textSecondary }]}>
+                  <MaterialIcons
+                    name="info"
+                    size={22}
+                    color={COLORS.textSecondary}
+                  />
+                  <Text
+                    style={[styles.menuText, { color: COLORS.textSecondary }]}
+                  >
                     Aún no estás asignado a un departamento
                   </Text>
                 </View>
-              )
-            )}
+              ))}
 
             {/* Sección de Empresas */}
             <View style={styles.sectionDivider}>
@@ -335,7 +347,11 @@ console.log("USER EN STACK:", user);
                 setEmpresaModal(true);
               }}
             >
-              <MaterialIcons name="add-business" size={22} color={COLORS.primary} />
+              <MaterialIcons
+                name="add-business"
+                size={22}
+                color={COLORS.primary}
+              />
               <Text style={styles.menuText}>Crear Empresa</Text>
             </Pressable>
 
@@ -356,26 +372,34 @@ console.log("USER EN STACK:", user);
               <Text style={styles.sectionHeader}>Administración</Text>
             </View>
 
-            {user?.rol === "Administrador" && user?.empresaSeleccionada &&(
+            {user?.rol === "Administrador" && user?.empresaSeleccionada && (
               <>
-                <Pressable 
-                  style={styles.menuOption} 
+                <Pressable
+                  style={styles.menuOption}
                   onPress={() => {
                     setMenuVisible(false);
                     navigation.navigate("GestionPermisos");
                   }}
                 >
-                  <MaterialIcons name="security" size={22} color={COLORS.primary}/>
+                  <MaterialIcons
+                    name="security"
+                    size={22}
+                    color={COLORS.primary}
+                  />
                   <Text style={styles.menuText}>Gestionar Permisos</Text>
                 </Pressable>
-                <Pressable  
-                  style={styles.menuOption} 
+                <Pressable
+                  style={styles.menuOption}
                   onPress={() => {
                     setMenuVisible(false);
                     navigation.navigate("GestionUsuarios");
                   }}
                 >
-                  <MaterialIcons name="person-search" size={22} color={COLORS.primary}/>
+                  <MaterialIcons
+                    name="person-search"
+                    size={22}
+                    color={COLORS.primary}
+                  />
                   <Text style={styles.menuText}>Gestiona Usuarios</Text>
                 </Pressable>
               </>
@@ -402,7 +426,7 @@ console.log("USER EN STACK:", user);
             >
               <Text style={styles.closeMenuText}>Cancelar</Text>
             </Pressable>
-          </View>      
+          </View>
         </View>
       </Modal>
 
@@ -468,7 +492,10 @@ console.log("USER EN STACK:", user);
               autoCapitalize="characters"
             />
 
-            <TouchableOpacity style={styles.createButton} onPress={handleUnirseEmpresa}>
+            <TouchableOpacity
+              style={styles.createButton}
+              onPress={handleUnirseEmpresa}
+            >
               <Text style={styles.createButtonText}>Unirse</Text>
             </TouchableOpacity>
 
@@ -478,7 +505,6 @@ console.log("USER EN STACK:", user);
           </View>
         </View>
       </Modal>
-
     </>
   );
 };

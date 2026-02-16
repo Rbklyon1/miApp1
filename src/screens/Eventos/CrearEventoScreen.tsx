@@ -1,63 +1,77 @@
-import React, { useState, useEffect } from "react";
+import { MaterialIcons } from "@expo/vector-icons";
+import React, { useEffect, useState } from "react";
 import {
-  View,
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  Alert,
-  Modal,
-  Switch,
+  View,
 } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
 import { useUser } from "../../context/UserContext";
-import { crearEvento } from "../../api/eventosService";
-import { obtenerUsuariosDeEmpresa } from "../../api/empresaService";
-import { COLORS, FONT_SIZES } from "../../types/index";
+import { obtenerUsuariosDeEmpresa } from "../../Services/empresaService";
+import { crearEvento } from "../../Services/eventosService";
 import { TipoEvento } from "../../types/eventos";
+import { COLORS, FONT_SIZES } from "../../types/index";
 
 const CrearEventoScreen: React.FC = ({ navigation }: any) => {
   const { user } = useUser();
-  
+
   // Estados del formulario
   const [titulo, setTitulo] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [tipo, setTipo] = useState<TipoEvento>("Reunión");
-  
+
   // Fecha y hora
   const [fechaInicio, setFechaInicio] = useState<Date>(new Date());
   const [horaInicio, setHoraInicio] = useState("09:00");
   const [fechaFin, setFechaFin] = useState<Date | undefined>();
   const [horaFin, setHoraFin] = useState("");
-  
+
   // Ubicación
   const [ubicacion, setUbicacion] = useState("");
   const [esVirtual, setEsVirtual] = useState(false);
   const [linkVirtual, setLinkVirtual] = useState("");
-  
+
   // Asistentes
   const [usuariosDisponibles, setUsuariosDisponibles] = useState<any[]>([]);
-  const [asistentesSeleccionados, setAsistentesSeleccionados] = useState<string[]>([]);
-  
+  const [asistentesSeleccionados, setAsistentesSeleccionados] = useState<
+    string[]
+  >([]);
+
   // Otros
   const [capacidadMaxima, setCapacidadMaxima] = useState("");
   const [notas, setNotas] = useState("");
-  
+
   // Modales
   const [mostrarModalFechaInicio, setMostrarModalFechaInicio] = useState(false);
   const [mostrarModalFechaFin, setMostrarModalFechaFin] = useState(false);
-  
+
   // Estados para el selector de fecha manual - Fecha Inicio
-  const [diaInicioSeleccionado, setDiaInicioSeleccionado] = useState(new Date().getDate());
-  const [mesInicioSeleccionado, setMesInicioSeleccionado] = useState(new Date().getMonth());
-  const [anioInicioSeleccionado, setAnioInicioSeleccionado] = useState(new Date().getFullYear());
-  
+  const [diaInicioSeleccionado, setDiaInicioSeleccionado] = useState(
+    new Date().getDate()
+  );
+  const [mesInicioSeleccionado, setMesInicioSeleccionado] = useState(
+    new Date().getMonth()
+  );
+  const [anioInicioSeleccionado, setAnioInicioSeleccionado] = useState(
+    new Date().getFullYear()
+  );
+
   // Estados para el selector de fecha manual - Fecha Fin
-  const [diaFinSeleccionado, setDiaFinSeleccionado] = useState(new Date().getDate());
-  const [mesFinSeleccionado, setMesFinSeleccionado] = useState(new Date().getMonth());
-  const [anioFinSeleccionado, setAnioFinSeleccionado] = useState(new Date().getFullYear());
-  
+  const [diaFinSeleccionado, setDiaFinSeleccionado] = useState(
+    new Date().getDate()
+  );
+  const [mesFinSeleccionado, setMesFinSeleccionado] = useState(
+    new Date().getMonth()
+  );
+  const [anioFinSeleccionado, setAnioFinSeleccionado] = useState(
+    new Date().getFullYear()
+  );
+
   const [isLoading, setIsLoading] = useState(false);
 
   // Cargar usuarios de la empresa
@@ -75,23 +89,39 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
             setUsuariosDisponibles(usuarios);
           }
         })
-        .catch(() => Alert.alert("Error", "No se pudieron cargar los usuarios"));
+        .catch(() =>
+          Alert.alert("Error", "No se pudieron cargar los usuarios")
+        );
     }
   }, [user?.empresaSeleccionada, user?.rol]);
 
-  const tiposEvento: TipoEvento[] = ["Reunión", "Capacitación", "Evaluación", "Social", "Otro"];
+  const tiposEvento: TipoEvento[] = [
+    "Reunión",
+    "Capacitación",
+    "Evaluación",
+    "Social",
+    "Otro",
+  ];
 
   const toggleAsistente = (uid: string) => {
     setAsistentesSeleccionados((prev) =>
-      prev.includes(uid)
-        ? prev.filter((id) => id !== uid)
-        : [...prev, uid]
+      prev.includes(uid) ? prev.filter((id) => id !== uid) : [...prev, uid]
     );
   };
 
   const meses = [
-    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
   ];
 
   const obtenerDiasDelMes = (mes: number, anio: number) => {
@@ -99,13 +129,21 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
   };
 
   const confirmarFechaInicio = () => {
-    const nuevaFecha = new Date(anioInicioSeleccionado, mesInicioSeleccionado, diaInicioSeleccionado);
+    const nuevaFecha = new Date(
+      anioInicioSeleccionado,
+      mesInicioSeleccionado,
+      diaInicioSeleccionado
+    );
     setFechaInicio(nuevaFecha);
     setMostrarModalFechaInicio(false);
   };
 
   const confirmarFechaFin = () => {
-    const nuevaFecha = new Date(anioFinSeleccionado, mesFinSeleccionado, diaFinSeleccionado);
+    const nuevaFecha = new Date(
+      anioFinSeleccionado,
+      mesFinSeleccionado,
+      diaFinSeleccionado
+    );
     setFechaFin(nuevaFecha);
     setMostrarModalFechaFin(false);
   };
@@ -150,7 +188,9 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
           esVirtual,
           linkVirtual,
           asistentesUids: asistentesSeleccionados,
-          capacidadMaxima: capacidadMaxima ? parseInt(capacidadMaxima) : undefined,
+          capacidadMaxima: capacidadMaxima
+            ? parseInt(capacidadMaxima)
+            : undefined,
           notas,
         },
         user?.uid!,
@@ -192,17 +232,11 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
         {tiposEvento.map((t) => (
           <TouchableOpacity
             key={t}
-            style={[
-              styles.tipoButton,
-              tipo === t && styles.tipoButtonActive,
-            ]}
+            style={[styles.tipoButton, tipo === t && styles.tipoButtonActive]}
             onPress={() => setTipo(t)}
           >
             <Text
-              style={[
-                styles.tipoText,
-                tipo === t && styles.tipoTextActive,
-              ]}
+              style={[styles.tipoText, tipo === t && styles.tipoTextActive]}
             >
               {t}
             </Text>
@@ -223,7 +257,7 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
 
       {/* Fecha y hora */}
       <Text style={styles.sectionTitle}>Fecha y hora</Text>
-      
+
       <View style={styles.dateTimeRow}>
         <View style={styles.dateTimeColumn}>
           <Text style={styles.label}>Fecha inicio *</Text>
@@ -262,20 +296,26 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
 
             {/* Selector de Año */}
             <Text style={styles.pickerLabel}>Año</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pickerScroll}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.pickerScroll}
+            >
               {[2024, 2025, 2026, 2027, 2028].map((anio) => (
                 <TouchableOpacity
                   key={anio}
                   style={[
                     styles.pickerButton,
-                    anioInicioSeleccionado === anio && styles.pickerButtonActive,
+                    anioInicioSeleccionado === anio &&
+                      styles.pickerButtonActive,
                   ]}
                   onPress={() => setAnioInicioSeleccionado(anio)}
                 >
                   <Text
                     style={[
                       styles.pickerButtonText,
-                      anioInicioSeleccionado === anio && styles.pickerButtonTextActive,
+                      anioInicioSeleccionado === anio &&
+                        styles.pickerButtonTextActive,
                     ]}
                   >
                     {anio}
@@ -286,20 +326,26 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
 
             {/* Selector de Mes */}
             <Text style={styles.pickerLabel}>Mes</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pickerScroll}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.pickerScroll}
+            >
               {meses.map((mes, index) => (
                 <TouchableOpacity
                   key={mes}
                   style={[
                     styles.pickerButton,
-                    mesInicioSeleccionado === index && styles.pickerButtonActive,
+                    mesInicioSeleccionado === index &&
+                      styles.pickerButtonActive,
                   ]}
                   onPress={() => setMesInicioSeleccionado(index)}
                 >
                   <Text
                     style={[
                       styles.pickerButtonText,
-                      mesInicioSeleccionado === index && styles.pickerButtonTextActive,
+                      mesInicioSeleccionado === index &&
+                        styles.pickerButtonTextActive,
                     ]}
                   >
                     {mes}
@@ -310,9 +356,18 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
 
             {/* Selector de Día */}
             <Text style={styles.pickerLabel}>Día</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pickerScroll}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.pickerScroll}
+            >
               {Array.from(
-                { length: obtenerDiasDelMes(mesInicioSeleccionado, anioInicioSeleccionado) },
+                {
+                  length: obtenerDiasDelMes(
+                    mesInicioSeleccionado,
+                    anioInicioSeleccionado
+                  ),
+                },
                 (_, i) => i + 1
               ).map((dia) => (
                 <TouchableOpacity
@@ -326,7 +381,8 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
                   <Text
                     style={[
                       styles.pickerButtonText,
-                      diaInicioSeleccionado === dia && styles.pickerButtonTextActive,
+                      diaInicioSeleccionado === dia &&
+                        styles.pickerButtonTextActive,
                     ]}
                   >
                     {dia}
@@ -336,13 +392,16 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
             </ScrollView>
 
             <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={styles.modalButtonSecondary} 
+              <TouchableOpacity
+                style={styles.modalButtonSecondary}
                 onPress={() => setMostrarModalFechaInicio(false)}
               >
                 <Text style={styles.modalButtonSecondaryText}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalButtonPrimary} onPress={confirmarFechaInicio}>
+              <TouchableOpacity
+                style={styles.modalButtonPrimary}
+                onPress={confirmarFechaInicio}
+              >
                 <Text style={styles.modalButtonPrimaryText}>Confirmar</Text>
               </TouchableOpacity>
             </View>
@@ -389,7 +448,11 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
 
             {/* Selector de Año */}
             <Text style={styles.pickerLabel}>Año</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pickerScroll}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.pickerScroll}
+            >
               {[2024, 2025, 2026, 2027, 2028].map((anio) => (
                 <TouchableOpacity
                   key={anio}
@@ -402,7 +465,8 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
                   <Text
                     style={[
                       styles.pickerButtonText,
-                      anioFinSeleccionado === anio && styles.pickerButtonTextActive,
+                      anioFinSeleccionado === anio &&
+                        styles.pickerButtonTextActive,
                     ]}
                   >
                     {anio}
@@ -413,7 +477,11 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
 
             {/* Selector de Mes */}
             <Text style={styles.pickerLabel}>Mes</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pickerScroll}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.pickerScroll}
+            >
               {meses.map((mes, index) => (
                 <TouchableOpacity
                   key={mes}
@@ -426,7 +494,8 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
                   <Text
                     style={[
                       styles.pickerButtonText,
-                      mesFinSeleccionado === index && styles.pickerButtonTextActive,
+                      mesFinSeleccionado === index &&
+                        styles.pickerButtonTextActive,
                     ]}
                   >
                     {mes}
@@ -437,9 +506,18 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
 
             {/* Selector de Día */}
             <Text style={styles.pickerLabel}>Día</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pickerScroll}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.pickerScroll}
+            >
               {Array.from(
-                { length: obtenerDiasDelMes(mesFinSeleccionado, anioFinSeleccionado) },
+                {
+                  length: obtenerDiasDelMes(
+                    mesFinSeleccionado,
+                    anioFinSeleccionado
+                  ),
+                },
                 (_, i) => i + 1
               ).map((dia) => (
                 <TouchableOpacity
@@ -453,7 +531,8 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
                   <Text
                     style={[
                       styles.pickerButtonText,
-                      diaFinSeleccionado === dia && styles.pickerButtonTextActive,
+                      diaFinSeleccionado === dia &&
+                        styles.pickerButtonTextActive,
                     ]}
                   >
                     {dia}
@@ -463,10 +542,16 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
             </ScrollView>
 
             <View style={styles.modalButtons}>
-              <TouchableOpacity style={styles.modalButtonSecondary} onPress={limpiarFechaFin}>
+              <TouchableOpacity
+                style={styles.modalButtonSecondary}
+                onPress={limpiarFechaFin}
+              >
                 <Text style={styles.modalButtonSecondaryText}>Limpiar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalButtonPrimary} onPress={confirmarFechaFin}>
+              <TouchableOpacity
+                style={styles.modalButtonPrimary}
+                onPress={confirmarFechaFin}
+              >
                 <Text style={styles.modalButtonPrimaryText}>Confirmar</Text>
               </TouchableOpacity>
             </View>
@@ -476,7 +561,7 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
 
       {/* Ubicación */}
       <Text style={styles.sectionTitle}>Ubicación</Text>
-      
+
       <View style={styles.switchRow}>
         <Text style={styles.label}>Evento virtual</Text>
         <Switch
@@ -519,13 +604,11 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
           </Text>
         </View>
       )}
-      
+
       {usuariosDisponibles.length === 0 && (
-        <Text style={styles.emptyUsersText}>
-          No hay usuarios disponibles
-        </Text>
+        <Text style={styles.emptyUsersText}>No hay usuarios disponibles</Text>
       )}
-      
+
       {usuariosDisponibles.map((usuario) => (
         <TouchableOpacity
           key={usuario.uid}
@@ -541,7 +624,11 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
             <Text style={styles.usuarioRol}>{usuario.rol}</Text>
           </View>
           {asistentesSeleccionados.includes(usuario.uid) && (
-            <MaterialIcons name="check-circle" size={24} color={COLORS.primary} />
+            <MaterialIcons
+              name="check-circle"
+              size={24}
+              color={COLORS.primary}
+            />
           )}
         </TouchableOpacity>
       ))}

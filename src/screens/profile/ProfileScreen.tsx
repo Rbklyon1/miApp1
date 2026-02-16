@@ -1,22 +1,22 @@
+import { MaterialIcons } from "@expo/vector-icons";
+import { StackNavigationProp } from "@react-navigation/stack";
+import { signOut } from "firebase/auth";
 import React, { useState } from "react";
 import {
-  View,
+  Alert,
+  Image,
+  SafeAreaView,
+  StatusBar,
+  StyleSheet,
   Text,
   TextInput,
-  StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
-  Alert,
-  StatusBar,
-  Image,
+  View,
 } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
 import { useUser } from "../../context/UserContext";
-import { COLORS, FONT_SIZES } from "../../types/index";
-import { StackNavigationProp } from "@react-navigation/stack";
 import { RootStackParamList } from "../../navigation/StackNavigator";
-import { signOut } from "firebase/auth";
-import { auth } from "../../api/firebaseConfig";
+import { auth } from "../../Services/firebaseConfig";
+import { COLORS, FONT_SIZES } from "../../types/index";
 
 type ProfileScreenNavigationProp = StackNavigationProp<
   RootStackParamList,

@@ -1,43 +1,40 @@
-import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  Alert,
-  StyleSheet,
-  TouchableOpacity,
-  SafeAreaView,
-  StatusBar,
-  TextInput,
-  Modal,
-  RefreshControl,
-  ScrollView,
-} from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { StackNavigationProp } from "@react-navigation/stack";
+import React, { useEffect, useState } from "react";
+import {
+  Alert,
+  FlatList,
+  Modal,
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useUser } from "../../context/UserContext";
 import { RootStackParamList } from "../../navigation/StackNavigator";
 import { COLORS, FONT_SIZES } from "../../types";
-import { useUser } from "../../context/UserContext";
 
 import {
-  obtenerMuroGeneral,
-  obtenerMuroDepartamento,
+  agregarReaccion,
   crearPublicacion,
   editarPublicacion,
   eliminarPublicacion,
-  agregarReaccion,
+  obtenerMuroDepartamento,
+  obtenerMuroGeneral,
   Publicacion,
-} from "../../api/publicacionesService";
+} from "../../Services/publicacionesService";
 
 import {
   cargarDepartamentos,
   Departamento,
-} from "../../api/departamentosService";
+} from "../../Services/departamentosService";
 
-type HomeScreenNavigationProp = StackNavigationProp<
-  RootStackParamList,
-  "Home"
->;
+type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, "Home">;
 
 interface Props {
   navigation: HomeScreenNavigationProp;
@@ -263,10 +260,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
             return (
               <TouchableOpacity
                 key={d.id}
-                style={[
-                  styles.deptoButton,
-                  activo && styles.deptoButtonActive,
-                ]}
+                style={[styles.deptoButton, activo && styles.deptoButtonActive]}
                 onPress={() => {
                   setTipoMuro("departamento");
                   setDeptoActivo(d);
@@ -351,9 +345,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
                     styles.reaccionBtn,
                     miReaccion(item)?.tipo === t && styles.reaccionActiva,
                   ]}
-                  onPress={() =>
-                    handleReaccion(item.id, t as any)
-                  }
+                  onPress={() => handleReaccion(item.id, t as any)}
                 >
                   <Text>
                     {t === "me_gusta" ? "👍" : t === "importante" ? "⚡" : "🎉"}{" "}

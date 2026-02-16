@@ -1,31 +1,31 @@
+import { MaterialIcons } from "@expo/vector-icons";
+import { StackNavigationProp } from "@react-navigation/stack";
+import {
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+} from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 import React, { useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
+  ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { StackNavigationProp } from "@react-navigation/stack";
-import { RootStackParamList } from "../../navigation/StackNavigator";
-import { LoginFormData, COLORS, FONT_SIZES } from "../../types";
-import {
-  signInWithEmailAndPassword,
-  sendPasswordResetEmail,
-} from "firebase/auth";
-import { auth, db } from "../../api/firebaseConfig";
-import { doc, getDoc } from "firebase/firestore";
 import { useUser } from "../../context/UserContext";
-import { MaterialIcons } from "@expo/vector-icons";
+import { RootStackParamList } from "../../navigation/StackNavigator";
+import { auth, db } from "../../Services/firebaseConfig";
+import { COLORS, FONT_SIZES, LoginFormData } from "../../types";
 
 import { useOffline } from "../../Hooks/useOffline";
 import { useOfflineAuth } from "../../Hooks/useOfflineAuth";
-import { loginOffline } from "../../api/offlineAuthService";
+import { loginOffline } from "../../Services/offlineAuthService";
 
 const loginImage = require("../../../assets/LogIn.png");
 
@@ -60,9 +60,9 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
     try {
       if (isOnline) {
-        // ============ LOGIN ONLINE (Firebase) ============
+        // ============ LOGIN ONLINE ============
         console.log("Iniciando login online...");
-        
+
         const cred = await signInWithEmailAndPassword(
           auth,
           formData.email.trim(),
@@ -95,7 +95,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
       } else {
         // ============ LOGIN OFFLINE ============
         console.log("📴 Iniciando login offline...");
-        
+
         const offlineUser = await loginOffline(
           formData.email.trim(),
           formData.password
@@ -127,7 +127,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
       }
     } catch (err: any) {
       console.error("❌ Error en login:", err);
-      
+
       let mensaje = "Error al iniciar sesión";
       if (err.code === "auth/user-not-found") {
         mensaje = "Usuario no encontrado";
@@ -140,7 +140,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
       } else if (err.message) {
         mensaje = err.message;
       }
-      
+
       Alert.alert("Error", mensaje);
     } finally {
       setLoading(false);
@@ -203,9 +203,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         {!isOnline && (
           <View style={styles.offlineWarning}>
             <MaterialIcons name="info" size={16} color={COLORS.warning} />
-            <Text style={styles.offlineWarningText}>
-              Modo Offline activado
-            </Text>
+            <Text style={styles.offlineWarningText}>Modo Offline activado</Text>
           </View>
         )}
 
@@ -242,16 +240,13 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          onPress={handleReset}
-          disabled={loading}
-        >
+        <TouchableOpacity onPress={handleReset} disabled={loading}>
           <Text style={[styles.link, loading && styles.linkDisabled]}>
             ¿Olvidaste tu contraseña?
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={() => navigation.navigate("Register")}
           disabled={loading}
         >
@@ -274,20 +269,20 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: COLORS.background 
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
   },
-  content: { 
-    flex: 1, 
-    justifyContent: "center", 
+  content: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
     padding: 20,
   },
-  image: { 
-    width: 120, 
-    height: 120, 
-    marginBottom: 20 
+  image: {
+    width: 120,
+    height: 120,
+    marginBottom: 20,
   },
   title: {
     fontSize: FONT_SIZES.xlarge,
@@ -324,13 +319,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
   },
-  buttonText: { 
-    color: "#fff", 
+  buttonText: {
+    color: "#fff",
     fontWeight: "bold",
     fontSize: FONT_SIZES.medium,
   },
-  link: { 
-    marginTop: 20, 
+  link: {
+    marginTop: 20,
     color: COLORS.primary,
     fontSize: FONT_SIZES.medium,
   },

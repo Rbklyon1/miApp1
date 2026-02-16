@@ -1,45 +1,54 @@
-import React, { useState, useEffect } from "react";
+import { MaterialIcons } from "@expo/vector-icons";
+import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
+  Alert,
   FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
   Modal,
   RefreshControl,
-  Alert,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
 import { useUser } from "../../context/UserContext";
-import { COLORS, FONT_SIZES } from "../../types";
-import { Tarea, EstadoTarea } from "../../types/tareas";
 import {
-  obtenerTareasDepartamento,
-  obtenerTareasAsignadasDepartamento,
+  cargarDepartamentos,
+  Departamento,
+} from "../../Services/departamentosService";
+import {
   actualizarEstadoTarea,
   eliminarTarea,
-} from "../../api/tareasService";
-import { cargarDepartamentos, Departamento } from "../../api/departamentosService";
+  obtenerTareasAsignadasDepartamento,
+  obtenerTareasDepartamento,
+} from "../../Services/tareasService";
+import { COLORS, FONT_SIZES } from "../../types";
+import { EstadoTarea, Tarea } from "../../types/tareas";
 
 const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
   const { user } = useUser();
   const [tareas, setTareas] = useState<Tarea[]>([]);
   const [loading, setLoading] = useState(false);
-  const [filtroEstado, setFiltroEstado] = useState<EstadoTarea | "Todas">("Todas");
-  const [vistaActual, setVistaActual] = useState<"todas" | "asignadas">("todas");
+  const [filtroEstado, setFiltroEstado] = useState<EstadoTarea | "Todas">(
+    "Todas"
+  );
+  const [vistaActual, setVistaActual] = useState<"todas" | "asignadas">(
+    "todas"
+  );
 
   // Para administradores
   const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
-  const [deptoSeleccionado, setDeptoSeleccionado] = useState<string | null>(null);
+  const [deptoSeleccionado, setDeptoSeleccionado] = useState<string | null>(
+    null
+  );
   const [modalDeptosVisible, setModalDeptosVisible] = useState(false);
 
   const esAdmin = user?.rol === "Administrador";
   const esJefe = user?.rol === "Jefe";
   const puedeCrear = esAdmin || esJefe;
 
-  const departamentoActual = esAdmin 
-    ? deptoSeleccionado 
+  const departamentoActual = esAdmin
+    ? deptoSeleccionado
     : user?.nombreDepartamento;
 
   // Cargar departamentos si es admin
@@ -66,7 +75,10 @@ const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
       let data: Tarea[];
 
       if (vistaActual === "todas") {
-        data = await obtenerTareasDepartamento(user.empresaId, departamentoActual);
+        data = await obtenerTareasDepartamento(
+          user.empresaId,
+          departamentoActual
+        );
       } else {
         data = await obtenerTareasAsignadasDepartamento(
           user.uid,
@@ -95,7 +107,10 @@ const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
     setModalDeptosVisible(false);
   };
 
-  const handleCambiarEstado = async (tareaId: string, nuevoEstado: EstadoTarea) => {
+  const handleCambiarEstado = async (
+    tareaId: string,
+    nuevoEstado: EstadoTarea
+  ) => {
     try {
       await actualizarEstadoTarea(tareaId, nuevoEstado);
       Alert.alert("Éxito", "Estado actualizado");
@@ -163,7 +178,11 @@ const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyContainer}>
-          <MaterialIcons name="assignment" size={80} color={COLORS.textSecondary} />
+          <MaterialIcons
+            name="assignment"
+            size={80}
+            color={COLORS.textSecondary}
+          />
           <Text style={styles.emptyTitle}>Sin departamento</Text>
           <Text style={styles.emptyText}>
             No tienes un departamento asignado.{"\n"}
@@ -179,7 +198,11 @@ const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyContainer}>
-          <MaterialIcons name="folder-open" size={80} color={COLORS.textSecondary} />
+          <MaterialIcons
+            name="folder-open"
+            size={80}
+            color={COLORS.textSecondary}
+          />
           <Text style={styles.emptyTitle}>No hay departamentos</Text>
           <Text style={styles.emptyText}>
             Aún no se han creado departamentos en esta empresa.{"\n"}
@@ -207,7 +230,11 @@ const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
                 {departamentoActual || "Selecciona departamento"}
               </Text>
               {esAdmin && (
-                <MaterialIcons name="expand-more" size={18} color={COLORS.primary} />
+                <MaterialIcons
+                  name="expand-more"
+                  size={18}
+                  color={COLORS.primary}
+                />
               )}
             </View>
           </View>
@@ -294,7 +321,9 @@ const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.tareaCard}
-            onPress={() => navigation.navigate("DetalleTarea", { tareaId: item.id })}
+            onPress={() =>
+              navigation.navigate("DetalleTarea", { tareaId: item.id })
+            }
           >
             {/* Header de la tarea */}
             <View style={styles.tareaHeader}>
@@ -326,7 +355,11 @@ const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
 
             {/* Asignados */}
             <View style={styles.asignadosContainer}>
-              <MaterialIcons name="people" size={16} color={COLORS.textSecondary} />
+              <MaterialIcons
+                name="people"
+                size={16}
+                color={COLORS.textSecondary}
+              />
               <Text style={styles.asignadosText}>
                 {item.nombresAsignados.join(", ")}
               </Text>
@@ -354,9 +387,15 @@ const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
 
               {item.fechaVencimiento && (
                 <View style={styles.fechaBadge}>
-                  <MaterialIcons name="event" size={14} color={COLORS.textSecondary} />
+                  <MaterialIcons
+                    name="event"
+                    size={14}
+                    color={COLORS.textSecondary}
+                  />
                   <Text style={styles.fechaText}>
-                    {new Date(item.fechaVencimiento).toLocaleDateString("es-MX")}
+                    {new Date(item.fechaVencimiento).toLocaleDateString(
+                      "es-MX"
+                    )}
                   </Text>
                 </View>
               )}
@@ -369,7 +408,9 @@ const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
                   {item.estado === "Pendiente" && (
                     <TouchableOpacity
                       style={styles.accionButton}
-                      onPress={() => handleCambiarEstado(item.id, "En Progreso")}
+                      onPress={() =>
+                        handleCambiarEstado(item.id, "En Progreso")
+                      }
                     >
                       <MaterialIcons name="play-arrow" size={16} color="#fff" />
                       <Text style={styles.accionButtonText}>Iniciar</Text>
@@ -378,7 +419,10 @@ const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
 
                   {item.estado === "En Progreso" && (
                     <TouchableOpacity
-                      style={[styles.accionButton, { backgroundColor: COLORS.success }]}
+                      style={[
+                        styles.accionButton,
+                        { backgroundColor: COLORS.success },
+                      ]}
                       onPress={() => handleCambiarEstado(item.id, "Completada")}
                     >
                       <MaterialIcons name="check" size={16} color="#fff" />
@@ -391,7 +435,11 @@ const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
         )}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <MaterialIcons name="assignment" size={64} color={COLORS.textSecondary} />
+            <MaterialIcons
+              name="assignment"
+              size={64}
+              color={COLORS.textSecondary}
+            />
             <Text style={styles.emptyText}>
               No hay tareas en este departamento
             </Text>
@@ -438,13 +486,18 @@ const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
                   <Text
                     style={[
                       styles.deptoItemText,
-                      deptoSeleccionado === item.nombre && styles.deptoItemTextActive,
+                      deptoSeleccionado === item.nombre &&
+                        styles.deptoItemTextActive,
                     ]}
                   >
                     {item.nombre}
                   </Text>
                   {deptoSeleccionado === item.nombre && (
-                    <MaterialIcons name="check" size={24} color={COLORS.primary} />
+                    <MaterialIcons
+                      name="check"
+                      size={24}
+                      color={COLORS.primary}
+                    />
                   )}
                 </TouchableOpacity>
               )}

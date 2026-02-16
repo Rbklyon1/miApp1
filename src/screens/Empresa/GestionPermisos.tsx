@@ -1,18 +1,18 @@
 import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  Switch,
-  StyleSheet,
-  TouchableOpacity,
   Alert,
   ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useUser } from "../../context/UserContext";
 import {
-  obtenerPermisosDeEmpresa,
   asignarPermisosPorRol,
-} from "../../api/empresaService";
+  obtenerPermisosDeEmpresa,
+} from "../../Services/empresaService";
 import { COLORS, FONT_SIZES } from "../../types/index";
 
 const GestionPermisosScreen: React.FC = () => {
@@ -24,7 +24,9 @@ const GestionPermisosScreen: React.FC = () => {
     if (user?.empresaSeleccionada) {
       obtenerPermisosDeEmpresa(user.empresaSeleccionada)
         .then(setPermisos)
-        .catch(() => Alert.alert("Error", "No se pudieron cargar los permisos."));
+        .catch(() =>
+          Alert.alert("Error", "No se pudieron cargar los permisos.")
+        );
     }
   }, [user?.empresaSeleccionada]);
 
@@ -83,9 +85,7 @@ const GestionPermisosScreen: React.FC = () => {
         ))}
       </View>
 
-      <Text style={styles.subtitle}>
-        Permisos del rol: {rolSeleccionado}
-      </Text>
+      <Text style={styles.subtitle}>Permisos del rol: {rolSeleccionado}</Text>
 
       {permisosDefecto.map((permiso) => (
         <View key={permiso} style={styles.permRow}>

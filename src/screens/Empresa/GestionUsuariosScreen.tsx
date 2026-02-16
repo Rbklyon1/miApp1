@@ -1,31 +1,31 @@
-import React, { useEffect, useMemo, useState } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  Alert,
-  StyleSheet,
-  Modal,
-  Pressable,
-  TextInput,
-  RefreshControl,
-} from "react-native";
 import { MaterialIcons } from "@expo/vector-icons";
 import { doc, updateDoc } from "firebase/firestore";
-import { db } from "../../api/firebaseConfig";
-import { useUser } from "../../context/UserContext";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  obtenerUsuariosDeEmpresa,
-  actualizarRolUsuario,
-  eliminarUsuarioDeEmpresa,
-} from "../../api/empresaService";
-import { COLORS, FONT_SIZES } from "../../types";
+  Alert,
+  FlatList,
+  Modal,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useUser } from "../../context/UserContext";
 import {
   cargarDepartamentos,
   crearDepartamento,
   Departamento,
-} from "../../api/departamentosService";
+} from "../../Services/departamentosService";
+import {
+  actualizarRolUsuario,
+  eliminarUsuarioDeEmpresa,
+  obtenerUsuariosDeEmpresa,
+} from "../../Services/empresaService";
+import { db } from "../../Services/firebaseConfig";
+import { COLORS, FONT_SIZES } from "../../types";
 
 type UsuarioItem = {
   uid: string;
@@ -42,11 +42,12 @@ const GestionUsuariosScreen: React.FC = () => {
   const [usuarios, setUsuarios] = useState<UsuarioItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
-  
+
   // Modales
   const [modalDeptoVisible, setModalDeptoVisible] = useState(false);
   const [modalCrearDeptoVisible, setModalCrearDeptoVisible] = useState(false);
-  const [usuarioSeleccionado, setUsuarioSeleccionado] = useState<UsuarioItem | null>(null);
+  const [usuarioSeleccionado, setUsuarioSeleccionado] =
+    useState<UsuarioItem | null>(null);
   const [nombreDepto, setNombreDepto] = useState("");
   const [creandoDepto, setCreandoDepto] = useState(false);
 
@@ -66,7 +67,7 @@ const GestionUsuariosScreen: React.FC = () => {
 
   const obtenerDeptos = async () => {
     if (!empresaActiva) return;
-    
+
     try {
       const data = await cargarDepartamentos(empresaActiva);
       setDepartamentos(data);
@@ -150,57 +151,62 @@ const GestionUsuariosScreen: React.FC = () => {
 
   const abrirSelectorDepto = (usuario: UsuarioItem) => {
     if (!esAdmin) {
-      Alert.alert("Sin permiso", "Solo un Administrador puede asignar departamentos.");
+      Alert.alert(
+        "Sin permiso",
+        "Solo un Administrador puede asignar departamentos."
+      );
       return;
     }
     setUsuarioSeleccionado(usuario);
     setModalDeptoVisible(true);
   };
 
-const asignarDepartamento = async (depto: Departamento) => {
-  if (!usuarioSeleccionado || !empresaActiva) {
-    console.log("❌ Faltan datos:", { usuarioSeleccionado, empresaActiva });
-    return;
-  }
-
-  const uid = usuarioSeleccionado.uid;
-  console.log("🟦 Voy a asignar depto:", { uid, deptoId: depto.id, deptoNombre: depto.nombre });
-
-  try {
-    const refUsuario = doc(db, "Usuarios", uid);
-
-    // 1) Intentar escribir
-    await updateDoc(refUsuario, {
-      idDepartamento: depto.id,
-      nombreDepartamento: depto.nombre,
-    });
-
-    console.log("✅ updateDoc OK");
-
-    // 2) Leer inmediatamente para confirmar que sí quedó guardado
-    const { getDoc } = await import("firebase/firestore");
-    const snap = await getDoc(refUsuario);
-
-    console.log("📌 Documento existe:", snap.exists());
-    console.log("📌 Data después de update:", snap.data());
-
-    Alert.alert("OK", "Asignado. Revisa consola y Firestore.");
-
-    // 3) Recargar contexto si aplica
-    if (uid === user?.uid) {
-      await recargarUsuario(uid);
-      console.log("✅ recargarUsuario OK");
+  const asignarDepartamento = async (depto: Departamento) => {
+    if (!usuarioSeleccionado || !empresaActiva) {
+      console.log("❌ Faltan datos:", { usuarioSeleccionado, empresaActiva });
+      return;
     }
 
-    setModalDeptoVisible(false);
-    setUsuarioSeleccionado(null);
-  } catch (error: any) {
-    console.error("❌ ERROR updateDoc:", error?.message ?? error);
-    Alert.alert("Error", error?.message ?? "No se pudo asignar");
-  }
-};
+    const uid = usuarioSeleccionado.uid;
+    console.log("🟦 Voy a asignar depto:", {
+      uid,
+      deptoId: depto.id,
+      deptoNombre: depto.nombre,
+    });
 
+    try {
+      const refUsuario = doc(db, "Usuarios", uid);
 
+      // 1) Intentar escribir
+      await updateDoc(refUsuario, {
+        idDepartamento: depto.id,
+        nombreDepartamento: depto.nombre,
+      });
+
+      console.log("✅ updateDoc OK");
+
+      // 2) Leer inmediatamente para confirmar que sí quedó guardado
+      const { getDoc } = await import("firebase/firestore");
+      const snap = await getDoc(refUsuario);
+
+      console.log("📌 Documento existe:", snap.exists());
+      console.log("📌 Data después de update:", snap.data());
+
+      Alert.alert("OK", "Asignado. Revisa consola y Firestore.");
+
+      // 3) Recargar contexto si aplica
+      if (uid === user?.uid) {
+        await recargarUsuario(uid);
+        console.log("✅ recargarUsuario OK");
+      }
+
+      setModalDeptoVisible(false);
+      setUsuarioSeleccionado(null);
+    } catch (error: any) {
+      console.error("❌ ERROR updateDoc:", error?.message ?? error);
+      Alert.alert("Error", error?.message ?? "No se pudo asignar");
+    }
+  };
 
   const quitarDepartamento = async () => {
     if (!usuarioSeleccionado) return;
@@ -247,7 +253,7 @@ const asignarDepartamento = async (depto: Departamento) => {
     try {
       await crearDepartamento(empresaActiva, nombreDepto.trim());
       await obtenerDeptos();
-      
+
       setModalCrearDeptoVisible(false);
       setNombreDepto("");
       Alert.alert("Éxito", "Departamento creado correctamente");
@@ -258,15 +264,15 @@ const asignarDepartamento = async (depto: Departamento) => {
       setCreandoDepto(false);
     }
   };
-useEffect(() => {
-  console.log("🔥 USER CONTEXT ACTUAL:", user);
-}, [user]);
+  useEffect(() => {
+    console.log("🔥 USER CONTEXT ACTUAL:", user);
+  }, [user]);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Usuarios de la Empresa</Text>
-        
+
         {esAdmin && (
           <TouchableOpacity
             style={styles.crearDeptoButton}
@@ -283,7 +289,9 @@ useEffect(() => {
         <View style={styles.infoBox}>
           <MaterialIcons name="info" size={16} color={COLORS.primary} />
           <Text style={styles.infoText}>
-            {departamentos.length} departamento{departamentos.length !== 1 ? 's' : ''} creado{departamentos.length !== 1 ? 's' : ''}
+            {departamentos.length} departamento
+            {departamentos.length !== 1 ? "s" : ""} creado
+            {departamentos.length !== 1 ? "s" : ""}
           </Text>
         </View>
       )}
@@ -325,7 +333,11 @@ useEffect(() => {
                     {item.nombreDepartamento || "Sin departamento"}
                   </Text>
                   {esAdmin && (
-                    <MaterialIcons name="expand-more" size={18} color={COLORS.primary} />
+                    <MaterialIcons
+                      name="expand-more"
+                      size={18}
+                      color={COLORS.primary}
+                    />
                   )}
                 </TouchableOpacity>
               )}
@@ -341,7 +353,10 @@ useEffect(() => {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.actionButton, { backgroundColor: COLORS.error }]}
+                  style={[
+                    styles.actionButton,
+                    { backgroundColor: COLORS.error },
+                  ]}
                   onPress={() => handleEliminar(item)}
                 >
                   <MaterialIcons name="delete" size={18} color="#fff" />
@@ -352,8 +367,14 @@ useEffect(() => {
         )}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <MaterialIcons name="people" size={64} color={COLORS.textSecondary} />
-            <Text style={styles.emptyText}>No hay usuarios en esta empresa</Text>
+            <MaterialIcons
+              name="people"
+              size={64}
+              color={COLORS.textSecondary}
+            />
+            <Text style={styles.emptyText}>
+              No hay usuarios en esta empresa
+            </Text>
           </View>
         }
       />
@@ -374,7 +395,11 @@ useEffect(() => {
 
             {departamentos.length === 0 ? (
               <View style={styles.emptyDeptos}>
-                <MaterialIcons name="folder-open" size={48} color={COLORS.textSecondary} />
+                <MaterialIcons
+                  name="folder-open"
+                  size={48}
+                  color={COLORS.textSecondary}
+                />
                 <Text style={styles.emptyDeptosText}>
                   No hay departamentos creados.
                 </Text>
@@ -385,7 +410,9 @@ useEffect(() => {
                     abrirModalCrearDepto();
                   }}
                 >
-                  <Text style={styles.crearDesdeModalText}>Crear departamento</Text>
+                  <Text style={styles.crearDesdeModalText}>
+                    Crear departamento
+                  </Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -398,9 +425,17 @@ useEffect(() => {
                     style={styles.deptoItem}
                     onPress={() => asignarDepartamento(item)}
                   >
-                    <MaterialIcons name="folder" size={20} color={COLORS.primary} />
+                    <MaterialIcons
+                      name="folder"
+                      size={20}
+                      color={COLORS.primary}
+                    />
                     <Text style={styles.deptoItemText}>{item.nombre}</Text>
-                    <MaterialIcons name="chevron-right" size={20} color="#999" />
+                    <MaterialIcons
+                      name="chevron-right"
+                      size={20}
+                      color="#999"
+                    />
                   </Pressable>
                 )}
               />
@@ -442,7 +477,7 @@ useEffect(() => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Crear Departamento</Text>
-            
+
             <TextInput
               style={styles.input}
               placeholder="Nombre del departamento"

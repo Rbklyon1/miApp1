@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { useOffline } from "./useOffline";
+import { Alert } from "react-native";
 import {
-  sincronizarUsuariosPendientes,
   hayUsuariosPendientes,
   obtenerCantidadPendientes,
-} from "../api/offlineAuthService";
-import { Alert } from "react-native";
+  sincronizarUsuariosPendientes,
+} from "../Services/offlineAuthService";
+import { useOffline } from "./useOffline";
 
 export const useOfflineAuth = () => {
   const { isOnline, isSyncing } = useOffline();
@@ -32,7 +32,7 @@ export const useOfflineAuth = () => {
 
     try {
       const hayPendientes = await hayUsuariosPendientes();
-      
+
       if (hayPendientes) {
         console.log("🔄 Iniciando sincronización de usuarios...");
         setIsSyncingUsers(true);

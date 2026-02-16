@@ -9,7 +9,7 @@ const PENDING_USERS_KEY = "@pending_users_sync";
 export interface OfflineUser {
   uid: string;
   email: string;
-  password: string; // Encriptado en producción
+  password: string; 
   nombre: string;
   pendiente: boolean;
   fechaCreacion: string;
@@ -30,7 +30,7 @@ export const guardarUsuarioOffline = async (
     const offlineUser: OfflineUser = {
       uid,
       email: email.toLowerCase().trim(),
-      password, // En producción: encriptar con crypto-js
+      password, 
       nombre: nombre.trim(),
       pendiente: true,
       fechaCreacion: new Date().toISOString(),

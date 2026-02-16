@@ -1,29 +1,26 @@
+import { MaterialIcons } from "@expo/vector-icons";
+import { doc, getDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
   ActivityIndicator,
+  Alert,
   Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
 import { useUser } from "../../context/UserContext";
-import {
-  actualizarEstadoAsistencia,
-  eliminarEvento,
-} from "../../api/eventosService";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "../../api/firebaseConfig";
-import { Evento, EstadoAsistencia } from "../../types/eventos";
+import {actualizarEstadoAsistencia, eliminarEvento,  } from "../../Services/eventosService";
+import { db } from "../../Services/firebaseConfig";
+import { EstadoAsistencia, Evento } from "../../types/eventos";
 import { COLORS, FONT_SIZES } from "../../types/index";
 
 const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
   const { eventoId } = route.params;
   const { user } = useUser();
-  
+
   const [evento, setEvento] = useState<Evento | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -35,7 +32,7 @@ const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
     try {
       const eventoRef = doc(db, "Eventos", eventoId);
       const eventoSnap = await getDoc(eventoRef);
-      
+
       if (eventoSnap.exists()) {
         setEvento({ id: eventoSnap.id, ...eventoSnap.data() } as Evento);
       } else {
@@ -52,14 +49,20 @@ const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
   const handleCambiarAsistencia = (nuevoEstado: EstadoAsistencia) => {
     Alert.alert(
       "Confirmar",
-      `¿Deseas ${nuevoEstado === "Confirmado" ? "confirmar" : "rechazar"} tu asistencia?`,
+      `¿Deseas ${
+        nuevoEstado === "Confirmado" ? "confirmar" : "rechazar"
+      } tu asistencia?`,
       [
         { text: "Cancelar", style: "cancel" },
         {
           text: "Confirmar",
           onPress: async () => {
             try {
-              await actualizarEstadoAsistencia(eventoId, user?.uid!, nuevoEstado);
+              await actualizarEstadoAsistencia(
+                eventoId,
+                user?.uid!,
+                nuevoEstado
+              );
               await cargarEvento();
               Alert.alert("Éxito", "Tu respuesta ha sido registrada");
             } catch {
@@ -118,11 +121,15 @@ const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
 
   if (!evento) return null;
 
-  const puedeEditar = user?.uid === evento.creadoPor || user?.rol === "Administrador";
+  const puedeEditar =
+    user?.uid === evento.creadoPor || user?.rol === "Administrador";
   const esAsistente = evento.asistentes.some((a) => a.uid === user?.uid);
-  const miEstado = evento.asistentes.find((a) => a.uid === user?.uid)?.estadoAsistencia;
-  const esEventoPasado = new Date(evento.fechaInicio) < new Date();
+  const miEstado = evento.asistentes.find(
+    (a) => a.uid === user?.uid
+  )?.estadoAsistencia;
+  const esEventoPasado = new Date(evento.fechaInicio) < new Date(); 
 
+  // Model
   const formatearFecha = (fecha: string) => {
     return new Date(fecha).toLocaleDateString("es-ES", {
       weekday: "long",
@@ -132,24 +139,37 @@ const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
     });
   };
 
+   // model
   const getTipoColor = (tipo: string) => {
     switch (tipo) {
-      case "Reunión": return "#2196F3";
-      case "Capacitación": return "#9C27B0";
-      case "Evaluación": return "#FF5722";
-      case "Social": return "#4CAF50";
-      default: return "#9E9E9E";
+      case "Reunión":
+        return "#2196F3";
+      case "Capacitación":
+        return "#9C27B0";
+      case "Evaluación":
+        return "#FF5722";
+      case "Social":
+        return "#4CAF50";
+      default:
+        return "#9E9E9E";
     }
   };
 
+   // model
   const getEstadoColor = (estado: EstadoAsistencia) => {
     switch (estado) {
-      case "Confirmado": return "#4CAF50";
-      case "Rechazado": return "#F44336";
-      case "Pendiente": return "#FF9800";
-      case "Asistió": return "#2196F3";
-      case "No Asistió": return "#9E9E9E";
-      default: return "#9E9E9E";
+      case "Confirmado":
+        return "#4CAF50";
+      case "Rechazado":
+        return "#F44336";
+      case "Pendiente":
+        return "#FF9800";
+      case "Asistió":
+        return "#2196F3";
+      case "No Asistió":
+        return "#9E9E9E";
+      default:
+        return "#9E9E9E";
     }
   };
 
@@ -179,7 +199,7 @@ const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
       {/* Fecha y hora */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Fecha y hora</Text>
-        
+
         <View style={styles.infoRow}>
           <MaterialIcons name="event" size={20} color={COLORS.primary} />
           <View style={styles.infoContent}>
@@ -206,7 +226,7 @@ const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
       {/* Ubicación */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Ubicación</Text>
-        
+
         <View style={styles.infoRow}>
           <MaterialIcons
             name={evento.esVirtual ? "videocam" : "place"}
@@ -218,7 +238,9 @@ const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
               {evento.esVirtual ? "Evento virtual" : "Ubicación física"}
             </Text>
             <Text style={styles.infoValue}>
-              {evento.esVirtual ? "En línea" : evento.ubicacion || "No especificada"}
+              {evento.esVirtual
+                ? "En línea"
+                : evento.ubicacion || "No especificada"}
             </Text>
           </View>
         </View>
@@ -261,7 +283,9 @@ const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
                 { backgroundColor: getEstadoColor(asistente.estadoAsistencia) },
               ]}
             >
-              <Text style={styles.estadoText}>{asistente.estadoAsistencia}</Text>
+              <Text style={styles.estadoText}>
+                {asistente.estadoAsistencia}
+              </Text>
             </View>
           </View>
         ))}
@@ -271,7 +295,7 @@ const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
       {esAsistente && !esEventoPasado && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Tu respuesta</Text>
-          
+
           <View style={styles.estadoActualCard}>
             <Text style={styles.estadoActualLabel}>Estado actual:</Text>
             <View
@@ -323,15 +347,20 @@ const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
       {/* Acciones de admin */}
       {puedeEditar && (
         <View style={styles.section}>
-          <TouchableOpacity 
-            style={styles.editarButton} 
-            onPress={() => navigation.navigate("EditarEvento", { eventoId: evento.id })}
+          <TouchableOpacity
+            style={styles.editarButton}
+            onPress={() =>
+              navigation.navigate("EditarEvento", { eventoId: evento.id })
+            }
           >
             <MaterialIcons name="edit" size={22} color="#fff" />
             <Text style={styles.editarText}>Editar evento</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.eliminarButton} onPress={handleEliminar}>
+          <TouchableOpacity
+            style={styles.eliminarButton}
+            onPress={handleEliminar}
+          >
             <MaterialIcons name="delete" size={22} color="#fff" />
             <Text style={styles.eliminarText}>Eliminar evento</Text>
           </TouchableOpacity>

@@ -36,9 +36,7 @@ export interface OfflineOperation {
 const QUEUE_KEY = '@offline_queue';
 const MAX_RETRIES = 3;
 
-// ===================================
-// CLASE OFFLINE SERVICE
-// ===================================
+
 
 class OfflineService {
   private queue: OfflineOperation[] = [];
@@ -60,7 +58,6 @@ class OfflineService {
       const wasOffline = !this.isOnline;
       this.isOnline = state.isConnected ?? false;
 
-      console.log('📡 Estado de red:', this.isOnline ? 'Online' : 'Offline');
 
       // Si volvemos a estar online, sincronizar
       if (wasOffline && this.isOnline) {
@@ -146,20 +143,6 @@ class OfflineService {
   // ===================================
 
   async syncQueue() {
-    if (this.isSyncing) {
-      console.log('⏳ Ya hay una sincronización en curso');
-      return;
-    }
-
-    if (!this.isOnline) {
-      console.log('📵 Sin conexión - esperando red');
-      return;
-    }
-
-    if (this.queue.length === 0) {
-      console.log('✅ Cola vacía - nada que sincronizar');
-      return;
-    }
 
     this.isSyncing = true;
     console.log(`🔄 Iniciando sincronización de ${this.queue.length} operaciones`);
@@ -184,10 +167,8 @@ class OfflineService {
         operation.retryCount++;
         operation.error = error.message;
 
-        // Si excedió reintentos, marcar como fallida permanentemente
         if (operation.retryCount >= MAX_RETRIES) {
           console.log(`⚠️ Operación falló después de ${MAX_RETRIES} intentos`);
-          // Opcionalmente, podrías removerla o mantenerla para revisión manual
         }
       }
 
@@ -257,8 +238,7 @@ class OfflineService {
         break;
 
       case 'eliminar_publicacion':
-        // Para eliminaciones, podrías usar deleteDoc
-        // o un soft delete con un campo "eliminado: true"
+
         break;
 
       default:
