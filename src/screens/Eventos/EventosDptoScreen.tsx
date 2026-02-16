@@ -32,7 +32,7 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
   const [vistaActual, setVistaActual] = useState<"todos" | "asignados">(
     "todos"
   );
-//listo 
+
   // Para administradores
   const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
   const [deptoSeleccionado, setDeptoSeleccionado] = useState<string | null>(
@@ -67,7 +67,8 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
   const cargarEventos = async () => {
     if (!user?.empresaId || !departamentoActual) return;
 
-    try {       //MEZCLA -----------------------------------------------------------------------------------
+    try {
+      //MEZCLA -----------------------------------------------------------------------------------
 
       setLoading(true);
       let data: Evento[];
@@ -95,7 +96,8 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
     }
   };
 
-  useEffect(() => {       //MEZCLA -----------------------------------------------------------------------------------
+  useEffect(() => {
+    //MEZCLA -----------------------------------------------------------------------------------
 
     if (departamentoActual) {
       cargarEventos();
@@ -111,7 +113,8 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
     eventoId: string,
     nuevoEstado: EstadoAsistencia
   ) => {
-    try {       //MEZCLA -----------------------------------------------------------------------------------
+    try {
+      //MEZCLA -----------------------------------------------------------------------------------
 
       await actualizarEstadoAsistencia(eventoId, user?.uid || "", nuevoEstado);
       Alert.alert("Éxito", "Tu respuesta ha sido registrada");
@@ -121,7 +124,8 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
     }
   };
 
-  const handleEliminar = (eventoId: string) => {       //MEZCLA -----------------------------------------------------------------------------------
+  const handleEliminar = (eventoId: string) => {
+    //MEZCLA -----------------------------------------------------------------------------------
 
     Alert.alert(
       "Eliminar evento",
