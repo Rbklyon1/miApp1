@@ -1,4 +1,3 @@
-// api/eventosService.ts
 import { db } from "./firebaseConfig";
 import {
   collection,
@@ -14,9 +13,7 @@ import {
 } from "firebase/firestore";
 import { Evento, EventoFormData, EstadoAsistencia, Asistente } from "../types/eventos";
 
-/**
- * Crear un nuevo evento
- */
+//Crear un nuevo evento
 export async function crearEvento(
   formData: EventoFormData,
   creadoPor: string,
@@ -29,7 +26,7 @@ export async function crearEvento(
   try {
     // Validación: Si es Jefe, verificar que no asigne a Admins
     if (rolCreador === "Jefe") {
-      console.log("⚠️ Jefe creando evento - validación de permisos activa");
+      console.log("Jefe creando evento - validación de permisos activa");
     }
 
     // Crear array de asistentes con estado inicial "Pendiente"
@@ -68,10 +65,10 @@ export async function crearEvento(
       adjuntos: [],
     });
 
-    console.log("✅ Evento creado con ID:", docRef.id);
+    console.log("Evento creado con ID:", docRef.id);
     return docRef.id;
   } catch (error: any) {
-    console.error("❌ Error al crear evento:", error);
+    console.error(" Error al crear evento:", error);
     
     if (error.code === "permission-denied") {
       throw new Error("No tienes permisos para asignar este evento a los usuarios seleccionados");
@@ -81,9 +78,7 @@ export async function crearEvento(
   }
 }
 
-/**
- * Obtener eventos de una empresa
- */
+// Obtener eventos de una empresa
 export async function obtenerEventosDeEmpresa(
   empresaId: string
 ): Promise<Evento[]> {
@@ -104,14 +99,12 @@ export async function obtenerEventosDeEmpresa(
       new Date(a.fechaInicio).getTime() - new Date(b.fechaInicio).getTime()
     );
   } catch (error: any) {
-    console.error("❌ Error al obtener eventos:", error);
+    console.error(" Error al obtener eventos:", error);
     throw error;
   }
 }
 
-/**
- * Obtener eventos donde el usuario es asistente
- */
+// Obtener eventos donde el usuario es asistente
 export async function obtenerEventosAsignados(
   uid: string,
   empresaId: string
@@ -138,14 +131,12 @@ export async function obtenerEventosAsignados(
       new Date(a.fechaInicio).getTime() - new Date(b.fechaInicio).getTime()
     );
   } catch (error: any) {
-    console.error("❌ Error al obtener eventos asignados:", error);
+    console.error(" Error al obtener eventos asignados:", error);
     throw error;
   }
 }
 
-/**
- * Obtener eventos creados por un usuario
- */
+//Obtener eventos creados por un usuario
 export async function obtenerEventosCreadosPor(
   uid: string,
   empresaId: string
@@ -167,14 +158,12 @@ export async function obtenerEventosCreadosPor(
       new Date(a.fechaInicio).getTime() - new Date(b.fechaInicio).getTime()
     );
   } catch (error: any) {
-    console.error("❌ Error al obtener eventos creados:", error);
+    console.error(" Error al obtener eventos creados:", error);
     throw error;
   }
 }
 
-/**
- * Actualizar estado de asistencia de un usuario
- */
+// Actualizar estado de asistencia de un usuario
 export async function actualizarEstadoAsistencia(
   eventoId: string,
   uid: string,
@@ -196,16 +185,14 @@ export async function actualizarEstadoAsistencia(
     );
     
     await updateDoc(eventoRef, { asistentes: asistentesActualizados });
-    console.log(`✅ Estado de asistencia actualizado: ${nuevoEstado}`);
+    console.log(`Estado de asistencia actualizado: ${nuevoEstado}`);
   } catch (error) {
-    console.error("❌ Error al actualizar estado:", error);
+    console.error(" Error al actualizar estado:", error);
     throw error;
   }
 }
 
-/**
- * Editar un evento existente
- */
+//Editar un evento existente
 export async function editarEvento(
   eventoId: string,
   datos: Partial<Evento>
@@ -213,29 +200,25 @@ export async function editarEvento(
   try {
     const eventoRef = doc(db, "Eventos", eventoId);
     await updateDoc(eventoRef, datos);
-    console.log("✅ Evento editado correctamente");
+    console.log("Evento editado correctamente");
   } catch (error) {
-    console.error("❌ Error al editar evento:", error);
+    console.error(" Error al editar evento:", error);
     throw error;
   }
 }
 
-/**
- * Eliminar un evento
- */
+//Eliminar un evento
 export async function eliminarEvento(eventoId: string): Promise<void> {
   try {
     await deleteDoc(doc(db, "Eventos", eventoId));
-    console.log("✅ Evento eliminado");
+    console.log("Evento eliminado");
   } catch (error) {
-    console.error("❌ Error al eliminar evento:", error);
+    console.error(" Error al eliminar evento:", error);
     throw error;
   }
 }
 
-/**
- * Obtener eventos próximos (próximos 7 días)
- */
+//Obtener eventos próximos (próximos 7 días)
 export async function obtenerEventosProximos(
   empresaId: string
 ): Promise<Evento[]> {
@@ -251,15 +234,12 @@ export async function obtenerEventosProximos(
       return fechaEvento >= hoy && fechaEvento <= enUnaSemana;
     });
   } catch (error) {
-    console.error("❌ Error al obtener eventos próximos:", error);
+    console.error(" Error al obtener eventos próximos:", error);
     throw error;
   }
 }
-// Agregar estas funciones al eventosService.ts existente
 
-/**
- * Obtener eventos de un departamento específico
- */
+// Obtener eventos de un departamento específico
 export async function obtenerEventosDepartamento(
   empresaId: string,
   nombreDepartamento: string
@@ -303,14 +283,12 @@ export async function obtenerEventosDepartamento(
       new Date(a.fechaInicio).getTime() - new Date(b.fechaInicio).getTime()
     );
   } catch (error: any) {
-    console.error("❌ Error al obtener eventos de departamento:", error);
+    console.error(" Error al obtener eventos de departamento:", error);
     throw error;
   }
 }
 
-/**
- * Obtener eventos asignados a usuarios de un departamento
- */
+//Obtener eventos asignados a usuarios de un departamento
 export async function obtenerEventosAsignadosDepartamento(
   uid: string,
   empresaId: string,
@@ -356,7 +334,7 @@ export async function obtenerEventosAsignadosDepartamento(
       new Date(a.fechaInicio).getTime() - new Date(b.fechaInicio).getTime()
     );
   } catch (error: any) {
-    console.error("❌ Error al obtener eventos asignados de departamento:", error);
+    console.error(" Error al obtener eventos asignados de departamento:", error);
     throw error;
   }
 }

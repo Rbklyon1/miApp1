@@ -1,165 +1,50 @@
-import { MaterialIcons } from "@expo/vector-icons";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
-  Alert,
+  View,
+  Text,
   FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
   Modal,
   RefreshControl,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
 } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useUser } from "../../context/UserContext";
-import {
-  cargarDepartamentos,
-  Departamento,
-} from "../../Services/departamentosService";
-import {
-  actualizarEstadoAsistencia,
-  eliminarEvento,
-  obtenerEventosAsignadosDepartamento,
-  obtenerEventosDepartamento,
-} from "../../Services/eventosService";
 import { COLORS, FONT_SIZES } from "../../types";
-import { EstadoAsistencia, Evento } from "../../types/eventos";
+import { Evento, EstadoAsistencia } from "../../types/eventos";
+
+// Hook (ViewModel ligero)
+import { useEventosDepto } from "../../Hooks/useEventoDpto";
+
+// Si tu tipo Departamento no lo exportas en types, puedes importarlo de donde lo tengas:
+import { Departamento } from "../../Services/departamentosService";
 
 const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
   const { user } = useUser();
-  const [eventos, setEventos] = useState<Evento[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [vistaActual, setVistaActual] = useState<"todos" | "asignados">(
-    "todos"
-  );
 
-  // Para administradores
-  const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
-  const [deptoSeleccionado, setDeptoSeleccionado] = useState<string | null>(
-    null
-  );
-  const [modalDeptosVisible, setModalDeptosVisible] = useState(false);
+  const {
+    // data
+    eventos,
+    departamentos,
+    // ui state
+    loading,
+    vistaActual,
+    setVistaActual,
+    modalDeptosVisible,
+    setModalDeptosVisible,
+    deptoSeleccionado,
+    // roles / permisos
+    esAdmin,
+    puedeCrear,
+    departamentoActual,
+    //Acciones
+    cargarEventos,
+    cambiarDepartamento,
+    cambiarAsistencia,
+    eliminar,
 
-  const esAdmin = user?.rol === "Administrador";
-  const esJefe = user?.rol === "Jefe";
-  const puedeCrear = esAdmin || esJefe;
-
-  const departamentoActual = esAdmin
-    ? deptoSeleccionado
-    : user?.nombreDepartamento;
-
-  // Cargar departamentos si es admin MEZCLA------------------------------------------------------------
-  useEffect(() => {
-    if (esAdmin && user?.empresaId) {
-      cargarDepartamentos(user.empresaId)
-        .then((deptos) => {
-          setDepartamentos(deptos);
-          if (deptos.length > 0 && !deptoSeleccionado) {
-            setDeptoSeleccionado(deptos[0].nombre);
-          }
-        })
-        .catch(() => {
-          Alert.alert("Error", "No se pudieron cargar los departamentos");
-        });
-    }
-  }, [user?.empresaId]);
-
-  const cargarEventos = async () => {
-    if (!user?.empresaId || !departamentoActual) return;
-
-    try {
-      //MEZCLA -----------------------------------------------------------------------------------
-
-      setLoading(true);
-      let data: Evento[];
-
-      if (vistaActual === "todos") {
-        data = await obtenerEventosDepartamento(
-          user.empresaId,
-          departamentoActual
-        );
-      } else {
-        data = await obtenerEventosAsignadosDepartamento(
-          user.uid,
-          user.empresaId,
-          departamentoActual
-        );
-      }
-
-      setEventos(data);
-    } catch (error) {
-      //MEZCLA
-      console.error("Error al cargar eventos:", error);
-      Alert.alert("Error", "No se pudieron cargar los eventos");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    //MEZCLA -----------------------------------------------------------------------------------
-
-    if (departamentoActual) {
-      cargarEventos();
-    }
-  }, [user?.empresaId, departamentoActual, vistaActual]);
-
-  const cambiarDepartamento = (depto: Departamento) => {
-    setDeptoSeleccionado(depto.nombre);
-    setModalDeptosVisible(false);
-  };
-
-  const handleCambiarAsistencia = async (
-    eventoId: string,
-    nuevoEstado: EstadoAsistencia
-  ) => {
-    try {
-      //MEZCLA -----------------------------------------------------------------------------------
-
-      await actualizarEstadoAsistencia(eventoId, user?.uid || "", nuevoEstado);
-      Alert.alert("Éxito", "Tu respuesta ha sido registrada");
-      cargarEventos();
-    } catch (error) {
-      Alert.alert("Error", "No se pudo actualizar tu respuesta");
-    }
-  };
-
-  const handleEliminar = (eventoId: string) => {
-    //MEZCLA -----------------------------------------------------------------------------------
-
-    Alert.alert(
-      "Eliminar evento",
-      "¿Estás seguro de que deseas eliminar este evento?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Eliminar",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await eliminarEvento(eventoId);
-              Alert.alert("Éxito", "Evento eliminado");
-              cargarEventos();
-            } catch {
-              Alert.alert("Error", "No se pudo eliminar el evento");
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const formatearFecha = (fecha: string) => {
-    return new Date(fecha).toLocaleDateString("es-MX", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
-  const formatearHora = (hora: string) => {
-    return hora;
-  };
+  } = useEventosDepto(user);
 
   const getTipoIcon = (tipo: string) => {
     switch (tipo) {
@@ -174,6 +59,14 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
       default:
         return "event";
     }
+  };
+
+    const formatearFecha = (fecha: string) => {
+    return new Date(fecha).toLocaleDateString("es-MX", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
   };
 
   const getTipoColor = (tipo: string) => {
@@ -206,7 +99,7 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
     }
   };
 
-  const miEstadoAsistencia = (evento: Evento) => {
+    const miEstadoAsistencia = (evento: Evento) => {
     return evento.asistentes.find((a) => a.uid === user?.uid)?.estadoAsistencia;
   };
 
@@ -214,7 +107,7 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
     return new Date(evento.fechaInicio) < new Date();
   };
 
-  // Vista para usuarios sin departamento
+  // UI pura: condiciones de render
   if (!esAdmin && !user?.nombreDepartamento) {
     return (
       <SafeAreaView style={styles.container}>
@@ -230,16 +123,11 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
     );
   }
 
-  // Vista para admin sin departamentos
   if (esAdmin && departamentos.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyContainer}>
-          <MaterialIcons
-            name="folder-open"
-            size={80}
-            color={COLORS.textSecondary}
-          />
+          <MaterialIcons name="folder-open" size={80} color={COLORS.textSecondary} />
           <Text style={styles.emptyTitle}>No hay departamentos</Text>
           <Text style={styles.emptyText}>
             Aún no se han creado departamentos en esta empresa.{"\n"}
@@ -267,11 +155,7 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
                 {departamentoActual || "Selecciona departamento"}
               </Text>
               {esAdmin && (
-                <MaterialIcons
-                  name="expand-more"
-                  size={18}
-                  color={COLORS.primary}
-                />
+                <MaterialIcons name="expand-more" size={18} color={COLORS.primary} />
               )}
             </View>
           </View>
@@ -287,7 +171,7 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
         )}
       </View>
 
-      {/* Filtros de vista */}
+      {/* Filtros */}
       <View style={styles.filterContainer}>
         <TouchableOpacity
           style={[
@@ -324,7 +208,7 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
         </TouchableOpacity>
       </View>
 
-      {/* Lista de eventos */}
+      {/* Lista */}
       <FlatList
         data={eventos}
         keyExtractor={(item) => item.id}
@@ -332,12 +216,10 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
           <RefreshControl refreshing={loading} onRefresh={cargarEventos} />
         }
         contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => (
+        renderItem={({ item }: { item: Evento }) => (
           <TouchableOpacity
             style={styles.eventoCard}
-            onPress={() =>
-              navigation.navigate("DetalleEvento", { eventoId: item.id })
-            }
+            onPress={() => navigation.navigate("DetalleEvento", { eventoId: item.id })}
           >
             {/* Header del evento */}
             <View style={styles.eventoHeader}>
@@ -348,27 +230,21 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
                     { backgroundColor: getTipoColor(item.tipo) },
                   ]}
                 >
-                  <MaterialIcons
-                    name={getTipoIcon(item.tipo)}
-                    size={24}
-                    color="#fff"
-                  />
+                  <MaterialIcons name={getTipoIcon(item.tipo)} size={24} color="#fff" />
                 </View>
 
                 <View style={{ flex: 1 }}>
                   <Text style={styles.eventoTitle} numberOfLines={2}>
                     {item.titulo}
                   </Text>
-                  <Text style={styles.eventoCreador}>
-                    Por: {item.nombreCreador}
-                  </Text>
+                  <Text style={styles.eventoCreador}>Por: {item.nombreCreador}</Text>
                 </View>
               </View>
 
               {(item.creadoPor === user?.uid || esAdmin) && (
                 <TouchableOpacity
                   style={styles.deleteButton}
-                  onPress={() => handleEliminar(item.id)}
+                  onPress={() => eliminar(item.id)}
                 >
                   <MaterialIcons name="delete" size={20} color={COLORS.error} />
                 </TouchableOpacity>
@@ -378,25 +254,15 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
             {/* Fecha y hora */}
             <View style={styles.fechaContainer}>
               <View style={styles.fechaItem}>
-                <MaterialIcons
-                  name="event"
-                  size={16}
-                  color={COLORS.textSecondary}
-                />
+                <MaterialIcons name="event" size={16} color={COLORS.textSecondary} />
                 <Text style={styles.fechaText}>
                   {formatearFecha(item.fechaInicio)}
                 </Text>
               </View>
 
               <View style={styles.fechaItem}>
-                <MaterialIcons
-                  name="access-time"
-                  size={16}
-                  color={COLORS.textSecondary}
-                />
-                <Text style={styles.fechaText}>
-                  {formatearHora(item.horaInicio)}
-                </Text>
+                <MaterialIcons name="access-time" size={16} color={COLORS.textSecondary} />
+                <Text style={styles.fechaText}>{item.horaInicio}</Text>
               </View>
             </View>
 
@@ -408,26 +274,19 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
                 color={COLORS.textSecondary}
               />
               <Text style={styles.ubicacionText}>
-                {item.esVirtual
-                  ? "Evento virtual"
-                  : item.ubicacion || "Sin ubicación"}
+                {item.esVirtual ? "Evento virtual" : item.ubicacion || "Sin ubicación"}
               </Text>
             </View>
 
             {/* Asistentes */}
             <View style={styles.asistentesContainer}>
-              <MaterialIcons
-                name="people"
-                size={16}
-                color={COLORS.textSecondary}
-              />
+              <MaterialIcons name="people" size={16} color={COLORS.textSecondary} />
               <Text style={styles.asistentesText}>
-                {item.asistentes.length} asistente
-                {item.asistentes.length !== 1 ? "s" : ""}
+                {item.asistentes.length} asistente{item.asistentes.length !== 1 ? "s" : ""}
               </Text>
             </View>
 
-            {/* Estado de asistencia del usuario */}
+            {/* Estado de asistencia */}
             {item.asistentes.some((a) => a.uid === user?.uid) && (
               <View style={styles.estadoAsistenciaContainer}>
                 <View
@@ -445,57 +304,41 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
                   </Text>
                 </View>
 
-                {/* Botones de respuesta (solo si está pendiente y no es pasado) */}
-                {miEstadoAsistencia(item) === "Pendiente" &&
-                  !esEventoPasado(item) && (
-                    <View style={styles.respuestaBotones}>
-                      <TouchableOpacity
-                        style={[styles.respuestaButton, styles.confirmarButton]}
-                        onPress={() =>
-                          handleCambiarAsistencia(item.id, "Confirmado")
-                        }
-                      >
-                        <MaterialIcons name="check" size={16} color="#fff" />
-                        <Text style={styles.respuestaButtonText}>
-                          Confirmar
-                        </Text>
-                      </TouchableOpacity>
+                {miEstadoAsistencia(item) === "Pendiente" && !esEventoPasado(item) && (
+                  <View style={styles.respuestaBotones}>
+                    <TouchableOpacity
+                      style={[styles.respuestaButton, styles.confirmarButton]}
+                      onPress={() => cambiarAsistencia(item.id, "Confirmado")}
+                    >
+                      <MaterialIcons name="check" size={16} color="#fff" />
+                      <Text style={styles.respuestaButtonText}>Confirmar</Text>
+                    </TouchableOpacity>
 
-                      <TouchableOpacity
-                        style={[styles.respuestaButton, styles.rechazarButton]}
-                        onPress={() =>
-                          handleCambiarAsistencia(item.id, "Rechazado")
-                        }
-                      >
-                        <MaterialIcons name="close" size={16} color="#fff" />
-                        <Text style={styles.respuestaButtonText}>Rechazar</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
+                    <TouchableOpacity
+                      style={[styles.respuestaButton, styles.rechazarButton]}
+                      onPress={() => cambiarAsistencia(item.id, "Rechazado")}
+                    >
+                      <MaterialIcons name="close" size={16} color="#fff" />
+                      <Text style={styles.respuestaButtonText}>Rechazar</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             )}
           </TouchableOpacity>
         )}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <MaterialIcons
-              name="event"
-              size={64}
-              color={COLORS.textSecondary}
-            />
-            <Text style={styles.emptyText}>
-              No hay eventos en este departamento
-            </Text>
+            <MaterialIcons name="event" size={64} color={COLORS.textSecondary} />
+            <Text style={styles.emptyText}>No hay eventos en este departamento</Text>
             {puedeCrear && (
-              <Text style={styles.emptySubtext}>
-                Toca el botón + para crear el primero
-              </Text>
+              <Text style={styles.emptySubtext}>Toca el botón + para crear el primero</Text>
             )}
           </View>
         }
       />
 
-      {/* Modal selector de departamentos */}
+      {/* Modal departamentos */}
       <Modal
         visible={modalDeptosVisible}
         transparent
@@ -509,7 +352,7 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
             <FlatList
               data={departamentos}
               keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
+              renderItem={({ item }: { item: Departamento }) => (
                 <TouchableOpacity
                   style={[
                     styles.deptoItem,
@@ -520,27 +363,18 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
                   <MaterialIcons
                     name="folder"
                     size={24}
-                    color={
-                      deptoSeleccionado === item.nombre
-                        ? COLORS.primary
-                        : COLORS.textSecondary
-                    }
+                    color={deptoSeleccionado === item.nombre ? COLORS.primary : COLORS.textSecondary}
                   />
                   <Text
                     style={[
                       styles.deptoItemText,
-                      deptoSeleccionado === item.nombre &&
-                        styles.deptoItemTextActive,
+                      deptoSeleccionado === item.nombre && styles.deptoItemTextActive,
                     ]}
                   >
                     {item.nombre}
                   </Text>
                   {deptoSeleccionado === item.nombre && (
-                    <MaterialIcons
-                      name="check"
-                      size={24}
-                      color={COLORS.primary}
-                    />
+                    <MaterialIcons name="check" size={24} color={COLORS.primary} />
                   )}
                 </TouchableOpacity>
               )}
@@ -556,33 +390,18 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
         </View>
       </Modal>
 
-      {/* Footer de navegación */}
+      {/* Footer (igual) */}
       <View style={styles.footerContainer}>
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={() => navigation.navigate("Home")}
-        >
+        <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate("Home")}>
           <MaterialIcons name="home" size={26} color="#666" />
         </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={() => navigation.navigate("MuroDpto")}
-        >
+        <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate("MuroDpto")}>
           <MaterialIcons name="business" size={26} color="#666" />
         </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={() => navigation.navigate("TareaDpto")}
-        >
+        <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate("TareaDpto")}>
           <MaterialIcons name="assignment" size={26} color="#666" />
         </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={() => navigation.navigate("EventoDpto")}
-        >
+        <TouchableOpacity style={styles.iconButton} onPress={() => navigation.navigate("EventoDpto")}>
           <MaterialIcons name="event" size={26} color={COLORS.primary} />
         </TouchableOpacity>
       </View>
