@@ -10,12 +10,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-// DateTimePicker removido - usando implementación manual
+// DateTimePicker removido 
 import { useUser } from "../../context/UserContext";
-import { obtenerUsuariosDeEmpresa } from "../../Services/empresaService";
+import { obtenerUsuariosDeEmpresa, obtenerUsuariosPorDepartamento  } from "../../Services/empresaService";
 import { crearTarea } from "../../Services/tareasService";
 import { COLORS, FONT_SIZES } from "../../types/index";
 import { PrioridadTarea } from "../../types/tareas";
+import { cargarDepartamentos, Departamento} from "../../Services/departamentosService";
 
 const CrearTareaScreen: React.FC = ({ navigation }: any) => {
   const { user } = useUser();
@@ -40,7 +41,25 @@ const CrearTareaScreen: React.FC = ({ navigation }: any) => {
     []
   );
 
+  //Lista de departamentos disponibles
+const [modoAsignacion, setModoAsignacion] = useState<"usuarios" | "departamento">("usuarios");
+const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
+const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<string>("");
+
   const [isLoading, setIsLoading] = useState(false);
+
+  //cargar departamentos de la empesa
+  useEffect(() => {
+  if (user?.rol === "Administrador" && user?.empresaSeleccionada) {
+    cargarDepartamentos(user.empresaSeleccionada)
+      .then((deptos) => {
+        setDepartamentos(deptos);
+      })
+      .catch(() => {
+        Alert.alert("Error", "No se pudieron cargar los departamentos");
+      });
+  }
+}, [user?.rol, user?.empresaSeleccionada]);
 
   // Cargar usuarios de la empresa
   useEffect(() => {
@@ -105,50 +124,80 @@ const CrearTareaScreen: React.FC = ({ navigation }: any) => {
     return new Date(anio, mes + 1, 0).getDate();
   };
 
-  const handleCrearTarea = async () => {
-    if (!titulo.trim()) {
-      Alert.alert("Error", "El título es obligatorio");
+
+ const handleCrearTarea = async () => {
+  if (!titulo.trim()) {
+    Alert.alert("Error", "El título es obligatorio");
+    return;
+  }
+
+  let uidsFinales: string[] = [];
+  let nombresAsignados: string[] = [];
+  let departamentoFinal: string | null = null;
+
+  if (user?.rol === "Administrador" && modoAsignacion === "departamento") {
+    if (!departamentoSeleccionado) {
+      Alert.alert("Error", "Debes seleccionar un departamento");
       return;
     }
 
+    const usuariosDepto = await obtenerUsuariosPorDepartamento(
+      user?.empresaSeleccionada!,
+      departamentoSeleccionado
+    );
+
+    console.log(" Departamento seleccionado:", departamentoSeleccionado);
+    console.log(" Usuarios encontrados:", usuariosDepto);
+
+    if (usuariosDepto.length === 0) {
+      Alert.alert("Error", "No hay usuarios asignados a ese departamento");
+      return;
+    }
+
+    uidsFinales = usuariosDepto.map((u) => u.uid);
+    departamentoFinal = departamentoSeleccionado;
+  } else {
     if (usuariosSeleccionados.length === 0) {
       Alert.alert("Error", "Debes asignar la tarea a al menos un usuario");
       return;
     }
 
-    setIsLoading(true);
-    try {
-      const nombresAsignados = usuariosDisponibles
-        .filter((u) => usuariosSeleccionados.includes(u.uid))
-        .map((u) => u.nombre);
+    uidsFinales = usuariosSeleccionados;
+    nombresAsignados = usuariosDisponibles
+      .filter((u) => usuariosSeleccionados.includes(u.uid))
+      .map((u) => u.nombre);
+  }
 
-      await crearTarea(
-        {
-          titulo,
-          descripcion,
-          prioridad,
-          fechaVencimiento,
-          asignadoA: usuariosSeleccionados,
-        },
-        user?.uid!,
-        user?.nombre!,
-        user?.empresaSeleccionada!,
-        user?.empresaNombre!,
-        nombresAsignados,
-        user?.rol // Pasamos el rol del creador
-      );
+  setIsLoading(true);
+  try {
+    await crearTarea(
+      {
+        titulo,
+        descripcion,
+        prioridad,
+        fechaVencimiento,
+        asignadoA: uidsFinales,
+        tipoAsignacion: user?.rol === "Administrador" ? modoAsignacion : "usuarios",
+        departamentoAsignado: departamentoFinal,
+      },
+      user?.uid!,
+      user?.nombre!,
+      user?.empresaSeleccionada!,
+      user?.empresaNombre!,
+      nombresAsignados,
+      user?.rol
+    );
 
-      Alert.alert("Éxito", "Tarea creada correctamente", [
-        { text: "OK", onPress: () => navigation.goBack() },
-      ]);
-    } catch (error: any) {
-      console.error("Error:", error);
-      const mensaje = error.message || "No se pudo crear la tarea";
-      Alert.alert("Error", mensaje);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    Alert.alert("Éxito", "Tarea creada correctamente", [
+      { text: "OK", onPress: () => navigation.goBack() },
+    ]);
+  } catch (error: any) {
+    console.error("Error:", error);
+    Alert.alert("Error", error.message || "No se pudo crear la tarea");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <ScrollView style={styles.container}>
@@ -333,44 +382,113 @@ const CrearTareaScreen: React.FC = ({ navigation }: any) => {
         </View>
       </Modal>
 
-      {/* Asignar a usuarios */}
-      <Text style={styles.sectionTitle}>Asignar a usuarios *</Text>
-      {user?.rol === "Jefe" && (
-        <View style={styles.warningBox}>
-          <MaterialIcons name="info" size={16} color="#FF9800" />
-          <Text style={styles.warningText}>
-            Como Jefe, solo puedes asignar tareas a Empleados y otros Jefes
-          </Text>
-        </View>
-      )}
-      {usuariosDisponibles.length === 0 && (
-        <Text style={styles.emptyUsersText}>
-          No hay usuarios disponibles para asignar
-        </Text>
-      )}
-      {usuariosDisponibles.map((usuario) => (
-        <TouchableOpacity
-          key={usuario.uid}
+      {user?.rol === "Administrador" && (
+  <>
+    <Text style={styles.label}>Modo de asignación</Text>
+    <View style={styles.prioridadContainer}>
+      <TouchableOpacity
+        style={[
+          styles.prioridadButton,
+          modoAsignacion === "usuarios" && styles.prioridadButtonActive,
+          { backgroundColor: modoAsignacion === "usuarios" ? COLORS.primary : "#f0f0f0" },
+        ]}
+        onPress={() => setModoAsignacion("usuarios")}
+      >
+        <Text
           style={[
-            styles.usuarioCard,
-            usuariosSeleccionados.includes(usuario.uid) &&
-              styles.usuarioCardSelected,
+            styles.prioridadText,
+            modoAsignacion === "usuarios" && styles.prioridadTextActive,
           ]}
-          onPress={() => toggleUsuario(usuario.uid)}
         >
-          <View style={styles.usuarioInfo}>
-            <Text style={styles.usuarioNombre}>{usuario.nombre}</Text>
-            <Text style={styles.usuarioRol}>{usuario.rol}</Text>
-          </View>
-          {usuariosSeleccionados.includes(usuario.uid) && (
-            <MaterialIcons
-              name="check-circle"
-              size={24}
-              color={COLORS.primary}
-            />
-          )}
-        </TouchableOpacity>
-      ))}
+          Usuarios
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[
+          styles.prioridadButton,
+          modoAsignacion === "departamento" && styles.prioridadButtonActive,
+          { backgroundColor: modoAsignacion === "departamento" ? COLORS.primary : "#f0f0f0" },
+        ]}
+        onPress={() => setModoAsignacion("departamento")}
+      >
+        <Text
+          style={[
+            styles.prioridadText,
+            modoAsignacion === "departamento" && styles.prioridadTextActive,
+          ]}
+        >
+          Departamento
+        </Text>
+      </TouchableOpacity>
+    </View>
+  </>
+)}
+
+      {/* Asignar a usuarios */}
+ <Text style={styles.sectionTitle}>
+  {modoAsignacion === "departamento" ? "Asignar por departamento *" : "Asignar a usuarios *"}
+</Text>
+
+{user?.rol === "Administrador" && modoAsignacion === "departamento" ? (
+  <>
+    {departamentos.map((depto) => (
+      <TouchableOpacity
+        key={depto.id}
+        style={[
+          styles.usuarioCard,
+          departamentoSeleccionado === depto.nombre && styles.usuarioCardSelected,
+        ]}
+        onPress={() => setDepartamentoSeleccionado(depto.nombre)}
+      >
+        <View style={styles.usuarioInfo}>
+          <Text style={styles.usuarioNombre}>{depto.nombre}</Text>
+          <Text style={styles.usuarioRol}>Se asignará a todos sus usuarios</Text>
+        </View>
+        {departamentoSeleccionado === depto.nombre && (
+          <MaterialIcons name="check-circle" size={24} color={COLORS.primary} />
+        )}
+      </TouchableOpacity>
+    ))}
+  </>
+) : (
+  <>
+    {user?.rol === "Jefe" && (
+      <View style={styles.warningBox}>
+        <MaterialIcons name="info" size={16} color="#FF9800" />
+        <Text style={styles.warningText}>
+          Como Jefe, solo puedes asignar tareas a Empleados y otros Jefes
+        </Text>
+      </View>
+    )}
+
+    {usuariosDisponibles.length === 0 && (
+      <Text style={styles.emptyUsersText}>
+        No hay usuarios disponibles para asignar
+      </Text>
+    )}
+
+    {usuariosDisponibles.map((usuario) => (
+      <TouchableOpacity
+        key={usuario.uid}
+        style={[
+          styles.usuarioCard,
+          usuariosSeleccionados.includes(usuario.uid) &&
+            styles.usuarioCardSelected,
+        ]}
+        onPress={() => toggleUsuario(usuario.uid)}
+      >
+        <View style={styles.usuarioInfo}>
+          <Text style={styles.usuarioNombre}>{usuario.nombre}</Text>
+          <Text style={styles.usuarioRol}>{usuario.rol}</Text>
+        </View>
+        {usuariosSeleccionados.includes(usuario.uid) && (
+          <MaterialIcons name="check-circle" size={24} color={COLORS.primary} />
+        )}
+      </TouchableOpacity>
+    ))}
+  </>
+)}
 
       {/* Botón crear */}
       <TouchableOpacity

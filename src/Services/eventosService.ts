@@ -63,6 +63,9 @@ export async function crearEvento(
       recordatorioEnviado: false,
       notas: formData.notas || "",
       adjuntos: [],
+
+      tipoAsignacion: formData.tipoAsignacion || "usuarios",
+      departamentoAsignado: formData.departamentoAsignado || null,
     });
 
     console.log("Evento creado con ID:", docRef.id);

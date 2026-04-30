@@ -1,4 +1,3 @@
-// src/hooks/useEventosDepto.ts
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Alert } from "react-native";
 import { eventosDeptoService } from "../Services/eventoDptoService";

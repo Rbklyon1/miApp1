@@ -1,370 +1,121 @@
-import { MaterialIcons } from "@expo/vector-icons";
-import { doc, updateDoc } from "firebase/firestore";
-import React, { useEffect, useMemo, useState } from "react";
+import React from "react";
 import {
-  Alert,
-  FlatList,
-  Modal,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
   View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  Modal,
+  TextInput,
+  ActivityIndicator,
 } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
 import { useUser } from "../../context/UserContext";
-import {
-  cargarDepartamentos,
-  crearDepartamento,
-  Departamento,
-} from "../../Services/departamentosService";
-import {
-  actualizarRolUsuario,
-  eliminarUsuarioDeEmpresa,
-  obtenerUsuariosDeEmpresa,
-} from "../../Services/empresaService";
-import { db } from "../../Services/firebaseConfig";
 import { COLORS, FONT_SIZES } from "../../types";
-
-type UsuarioItem = {
-  uid: string;
-  nombre: string;
-  correo: string;
-  rol: string;
-  idDepartamento?: string;
-  nombreDepartamento?: string;
-};
+import { useGestionUsuarios } from "../../Hooks/useGestionUsuarios";
 
 const GestionUsuariosScreen: React.FC = () => {
   const { user, recargarUsuario } = useUser();
 
-  const [usuarios, setUsuarios] = useState<UsuarioItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
+  const {
+    usuarios,
+    loading,
+    departamentos,
 
-  // Modales
-  const [modalDeptoVisible, setModalDeptoVisible] = useState(false);
-  const [modalCrearDeptoVisible, setModalCrearDeptoVisible] = useState(false);
-  const [usuarioSeleccionado, setUsuarioSeleccionado] =
-    useState<UsuarioItem | null>(null);
-  const [nombreDepto, setNombreDepto] = useState("");
-  const [creandoDepto, setCreandoDepto] = useState(false);
+    modalDeptoVisible,
+    modalCrearDeptoVisible,
+    usuarioSeleccionado,
 
-  const empresaActiva = useMemo(
-    () => user?.empresaSeleccionada || user?.empresaId || null,
-    [user?.empresaSeleccionada, user?.empresaId]
+    nombreDepto,
+    setNombreDepto,
+    creandoDepto,
+
+    esAdmin,
+
+    cargarUsuarios,
+    cambiarRol,
+    eliminarUsuario,
+    abrirSelectorDepto,
+    asignarDepartamento,
+    quitarDepartamento,
+    abrirModalCrearDepto,
+    crearDepto,
+    cerrarModalDepto,
+    cerrarModalCrearDepto,
+  } = useGestionUsuarios(user, recargarUsuario);
+
+  const renderUsuario = ({ item }: any) => (
+    <View style={styles.userCard}>
+      <View style={styles.userInfo}>
+        <Text style={styles.userName}>{item.nombre}</Text>
+        <Text style={styles.userEmail}>{item.correo}</Text>
+        <Text style={styles.userRole}>Rol: {item.rol}</Text>
+        <Text style={styles.userDepto}>
+          Departamento: {item.nombreDepartamento || "Sin departamento"}
+        </Text>
+      </View>
+
+      <View style={styles.actions}>
+        {esAdmin && item.uid !== user?.uid && (
+          <>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => cambiarRol(item)}
+            >
+              <MaterialIcons name="swap-horiz" size={22} color={COLORS.primary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => abrirSelectorDepto(item)}
+            >
+              <MaterialIcons name="business" size={22} color={COLORS.primary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => eliminarUsuario(item)}
+            >
+              <MaterialIcons name="delete" size={22} color={COLORS.error} />
+            </TouchableOpacity>
+          </>
+        )}
+      </View>
+    </View>
   );
 
-  const esAdmin = user?.rol === "Administrador";
-
-  useEffect(() => {
-    if (empresaActiva) {
-      cargarUsuarios();
-      obtenerDeptos();
-    }
-  }, [empresaActiva]);
-
-  const obtenerDeptos = async () => {
-    if (!empresaActiva) return;
-
-    try {
-      const data = await cargarDepartamentos(empresaActiva);
-      setDepartamentos(data);
-      console.log("✅ Departamentos cargados:", data.length);
-    } catch (error) {
-      console.error("❌ Error cargando departamentos:", error);
-      setDepartamentos([]);
-    }
-  };
-
-  const cargarUsuarios = async () => {
-    if (!empresaActiva) return;
-
-    try {
-      setLoading(true);
-      const data = await obtenerUsuariosDeEmpresa(empresaActiva);
-
-      setUsuarios(
-        data.map((u) => ({
-          uid: u.uid,
-          nombre: u.nombre,
-          correo: u.correo,
-          rol: u.rol,
-          idDepartamento: (u as any).idDepartamento,
-          nombreDepartamento: (u as any).nombreDepartamento,
-        }))
-      );
-    } catch (error) {
-      console.error("❌ Error cargando usuarios:", error);
-      Alert.alert("Error", "No se pudieron cargar los usuarios.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCambiarRol = (usuario: UsuarioItem) => {
-    const nuevoRol = usuario.rol === "Empleado" ? "Jefe" : "Empleado";
-    Alert.alert(
-      "Cambiar rol",
-      `¿Deseas cambiar el rol de ${usuario.nombre} a ${nuevoRol}?`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Confirmar",
-          onPress: async () => {
-            try {
-              await actualizarRolUsuario(usuario.uid, nuevoRol);
-              await cargarUsuarios();
-              Alert.alert("Éxito", "Rol actualizado correctamente");
-            } catch {
-              Alert.alert("Error", "No se pudo actualizar el rol");
-            }
-          },
-        },
-      ]
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Cargando usuarios...</Text>
+      </View>
     );
-  };
-
-  const handleEliminar = (usuario: UsuarioItem) => {
-    Alert.alert(
-      "Eliminar usuario",
-      `¿Deseas eliminar a ${usuario.nombre} de esta empresa?`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Eliminar",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await eliminarUsuarioDeEmpresa(usuario.uid);
-              await cargarUsuarios();
-              Alert.alert("Éxito", "Usuario eliminado");
-            } catch {
-              Alert.alert("Error", "No se pudo eliminar el usuario");
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const abrirSelectorDepto = (usuario: UsuarioItem) => {
-    if (!esAdmin) {
-      Alert.alert(
-        "Sin permiso",
-        "Solo un Administrador puede asignar departamentos."
-      );
-      return;
-    }
-    setUsuarioSeleccionado(usuario);
-    setModalDeptoVisible(true);
-  };
-
-  const asignarDepartamento = async (depto: Departamento) => {
-    if (!usuarioSeleccionado || !empresaActiva) {
-      console.log("❌ Faltan datos:", { usuarioSeleccionado, empresaActiva });
-      return;
-    }
-
-    const uid = usuarioSeleccionado.uid;
-    console.log("🟦 Voy a asignar depto:", {
-      uid,
-      deptoId: depto.id,
-      deptoNombre: depto.nombre,
-    });
-
-    try {
-      const refUsuario = doc(db, "Usuarios", uid);
-
-      // 1) Intentar escribir
-      await updateDoc(refUsuario, {
-        idDepartamento: depto.id,
-        nombreDepartamento: depto.nombre,
-      });
-
-      console.log("✅ updateDoc OK");
-
-      // 2) Leer inmediatamente para confirmar que sí quedó guardado
-      const { getDoc } = await import("firebase/firestore");
-      const snap = await getDoc(refUsuario);
-
-      console.log("📌 Documento existe:", snap.exists());
-      console.log("📌 Data después de update:", snap.data());
-
-      Alert.alert("OK", "Asignado. Revisa consola y Firestore.");
-
-      // 3) Recargar contexto si aplica
-      if (uid === user?.uid) {
-        await recargarUsuario(uid);
-        console.log("✅ recargarUsuario OK");
-      }
-
-      setModalDeptoVisible(false);
-      setUsuarioSeleccionado(null);
-    } catch (error: any) {
-      console.error("❌ ERROR updateDoc:", error?.message ?? error);
-      Alert.alert("Error", error?.message ?? "No se pudo asignar");
-    }
-  };
-
-  const quitarDepartamento = async () => {
-    if (!usuarioSeleccionado) return;
-
-    try {
-      await updateDoc(doc(db, "Usuarios", usuarioSeleccionado.uid), {
-        idDepartamento: null,
-        nombreDepartamento: null,
-      });
-
-      setUsuarios((prev) =>
-        prev.map((u) =>
-          u.uid === usuarioSeleccionado.uid
-            ? { ...u, idDepartamento: undefined, nombreDepartamento: undefined }
-            : u
-        )
-      );
-
-      if (usuarioSeleccionado.uid === user?.uid) {
-        await recargarUsuario(usuarioSeleccionado.uid);
-      }
-
-      setModalDeptoVisible(false);
-      setUsuarioSeleccionado(null);
-      Alert.alert("Listo", "Departamento removido");
-    } catch (error) {
-      console.error("❌ Error quitando departamento:", error);
-      Alert.alert("Error", "No se pudo remover el departamento.");
-    }
-  };
-
-  const abrirModalCrearDepto = () => {
-    setNombreDepto("");
-    setModalCrearDeptoVisible(true);
-  };
-
-  const handleCrearDepartamento = async () => {
-    if (!nombreDepto.trim() || !empresaActiva) {
-      Alert.alert("Error", "Escribe un nombre válido");
-      return;
-    }
-
-    setCreandoDepto(true);
-    try {
-      await crearDepartamento(empresaActiva, nombreDepto.trim());
-      await obtenerDeptos();
-
-      setModalCrearDeptoVisible(false);
-      setNombreDepto("");
-      Alert.alert("Éxito", "Departamento creado correctamente");
-    } catch (error) {
-      console.error("❌ Error al crear departamento:", error);
-      Alert.alert("Error", "No se pudo crear el departamento");
-    } finally {
-      setCreandoDepto(false);
-    }
-  };
-  useEffect(() => {
-    console.log("🔥 USER CONTEXT ACTUAL:", user);
-  }, [user]);
+  }
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Usuarios de la Empresa</Text>
+        <Text style={styles.title}>Gestión de Usuarios</Text>
 
         {esAdmin && (
           <TouchableOpacity
-            style={styles.crearDeptoButton}
+            style={styles.createDeptoButton}
             onPress={abrirModalCrearDepto}
           >
-            <MaterialIcons name="add" size={20} color="#fff" />
-            <Text style={styles.crearDeptoText}>Nuevo Depto</Text>
+            <MaterialIcons name="add-business" size={20} color="#fff" />
+            <Text style={styles.createDeptoText}>Crear depto</Text>
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Info de departamentos */}
-      {esAdmin && (
-        <View style={styles.infoBox}>
-          <MaterialIcons name="info" size={16} color={COLORS.primary} />
-          <Text style={styles.infoText}>
-            {departamentos.length} departamento
-            {departamentos.length !== 1 ? "s" : ""} creado
-            {departamentos.length !== 1 ? "s" : ""}
-          </Text>
-        </View>
-      )}
-
       <FlatList
         data={usuarios}
         keyExtractor={(item) => item.uid}
-        refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={cargarUsuarios} />
-        }
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={{ flex: 1, paddingRight: 10 }}>
-              <Text style={styles.name}>{item.nombre}</Text>
-              <Text style={styles.email}>{item.correo}</Text>
-              <Text style={styles.rol}>Rol: {item.rol}</Text>
-
-              {/* Botón Departamento */}
-              {item.rol !== "Administrador" && (
-                <TouchableOpacity
-                  style={[
-                    styles.deptoPill,
-                    !esAdmin && styles.deptoPillDisabled,
-                  ]}
-                  onPress={() => abrirSelectorDepto(item)}
-                  disabled={!esAdmin}
-                >
-                  <MaterialIcons
-                    name="apartment"
-                    size={16}
-                    color={esAdmin ? COLORS.primary : "#999"}
-                  />
-                  <Text
-                    style={[
-                      styles.deptoPillText,
-                      !esAdmin && { color: "#999" },
-                    ]}
-                  >
-                    {item.nombreDepartamento || "Sin departamento"}
-                  </Text>
-                  {esAdmin && (
-                    <MaterialIcons
-                      name="expand-more"
-                      size={18}
-                      color={COLORS.primary}
-                    />
-                  )}
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {item.rol !== "Administrador" && (
-              <View style={styles.actions}>
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() => handleCambiarRol(item)}
-                >
-                  <MaterialIcons name="swap-horiz" size={18} color="#fff" />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.actionButton,
-                    { backgroundColor: COLORS.error },
-                  ]}
-                  onPress={() => handleEliminar(item)}
-                >
-                  <MaterialIcons name="delete" size={18} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        )}
+        renderItem={renderUsuario}
+        refreshing={loading}
+        onRefresh={cargarUsuarios}
+        contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <MaterialIcons
@@ -372,148 +123,110 @@ const GestionUsuariosScreen: React.FC = () => {
               size={64}
               color={COLORS.textSecondary}
             />
-            <Text style={styles.emptyText}>
-              No hay usuarios en esta empresa
-            </Text>
+            <Text style={styles.emptyText}>No hay usuarios registrados</Text>
           </View>
         }
       />
 
-      {/* Modal Selector de Departamento */}
       <Modal
         visible={modalDeptoVisible}
         transparent
-        animationType="fade"
-        onRequestClose={() => setModalDeptoVisible(false)}
+        animationType="slide"
+        onRequestClose={cerrarModalDepto}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Asignar departamento</Text>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>
+              Asignar departamento
+            </Text>
+
             <Text style={styles.modalSubtitle}>
               Usuario: {usuarioSeleccionado?.nombre}
             </Text>
 
-            {departamentos.length === 0 ? (
-              <View style={styles.emptyDeptos}>
-                <MaterialIcons
-                  name="folder-open"
-                  size={48}
-                  color={COLORS.textSecondary}
-                />
-                <Text style={styles.emptyDeptosText}>
-                  No hay departamentos creados.
-                </Text>
+            <FlatList
+              data={departamentos}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={styles.crearDesdeModalBtn}
-                  onPress={() => {
-                    setModalDeptoVisible(false);
-                    abrirModalCrearDepto();
-                  }}
+                  style={styles.deptoItem}
+                  onPress={() => asignarDepartamento(item)}
                 >
-                  <Text style={styles.crearDesdeModalText}>
-                    Crear departamento
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <FlatList
-                data={departamentos}
-                keyExtractor={(d) => d.id}
-                style={styles.deptosList}
-                renderItem={({ item }) => (
-                  <Pressable
-                    style={styles.deptoItem}
-                    onPress={() => asignarDepartamento(item)}
-                  >
-                    <MaterialIcons
-                      name="folder"
-                      size={20}
-                      color={COLORS.primary}
-                    />
-                    <Text style={styles.deptoItemText}>{item.nombre}</Text>
-                    <MaterialIcons
-                      name="chevron-right"
-                      size={20}
-                      color="#999"
-                    />
-                  </Pressable>
-                )}
-              />
-            )}
-
-            <View style={styles.modalFooter}>
-              <TouchableOpacity
-                style={[styles.footerBtn, { backgroundColor: "#f0f0f0" }]}
-                onPress={() => {
-                  setModalDeptoVisible(false);
-                  setUsuarioSeleccionado(null);
-                }}
-              >
-                <Text style={[styles.footerBtnText, { color: COLORS.text }]}>
-                  Cancelar
-                </Text>
-              </TouchableOpacity>
-
-              {departamentos.length > 0 && (
-                <TouchableOpacity
-                  style={[styles.footerBtn, { backgroundColor: COLORS.error }]}
-                  onPress={quitarDepartamento}
-                >
-                  <Text style={styles.footerBtnText}>Quitar</Text>
+                  <MaterialIcons
+                    name="folder"
+                    size={24}
+                    color={COLORS.primary}
+                  />
+                  <Text style={styles.deptoText}>{item.nombre}</Text>
                 </TouchableOpacity>
               )}
-            </View>
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>
+                  No hay departamentos creados
+                </Text>
+              }
+            />
+
+            {usuarioSeleccionado?.nombreDepartamento && (
+              <TouchableOpacity
+                style={styles.removeDeptoButton}
+                onPress={quitarDepartamento}
+              >
+                <Text style={styles.removeDeptoText}>
+                  Quitar departamento
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={cerrarModalDepto}
+            >
+              <Text style={styles.closeButtonText}>Cerrar</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      {/* Modal Crear Departamento */}
       <Modal
         visible={modalCrearDeptoVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => setModalCrearDeptoVisible(false)}
+        onRequestClose={cerrarModalCrearDepto}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Crear Departamento</Text>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Crear departamento</Text>
 
             <TextInput
               style={styles.input}
               placeholder="Nombre del departamento"
               value={nombreDepto}
               onChangeText={setNombreDepto}
-              maxLength={50}
+              editable={!creandoDepto}
             />
 
-            <View style={styles.modalFooter}>
-              <TouchableOpacity
-                style={[styles.footerBtn, { backgroundColor: "#f0f0f0" }]}
-                onPress={() => {
-                  setModalCrearDeptoVisible(false);
-                  setNombreDepto("");
-                }}
-                disabled={creandoDepto}
-              >
-                <Text style={[styles.footerBtnText, { color: COLORS.text }]}>
-                  Cancelar
-                </Text>
-              </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.saveButton,
+                creandoDepto && styles.buttonDisabled,
+              ]}
+              onPress={crearDepto}
+              disabled={creandoDepto}
+            >
+              {creandoDepto ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.saveButtonText}>Guardar</Text>
+              )}
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[
-                  styles.footerBtn,
-                  { backgroundColor: COLORS.primary },
-                  creandoDepto && { opacity: 0.6 },
-                ]}
-                onPress={handleCrearDepartamento}
-                disabled={creandoDepto || !nombreDepto.trim()}
-              >
-                <Text style={styles.footerBtnText}>
-                  {creandoDepto ? "Creando..." : "Crear"}
-                </Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={cerrarModalCrearDepto}
+            >
+              <Text style={styles.closeButtonText}>Cancelar</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -525,195 +238,177 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
-    padding: 20,
+  },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.background,
+  },
+  loadingText: {
+    marginTop: 10,
+    color: COLORS.textSecondary,
+    fontSize: FONT_SIZES.medium,
   },
   header: {
+    padding: 16,
+    backgroundColor: COLORS.surface,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 15,
+    elevation: 2,
   },
   title: {
-    fontSize: FONT_SIZES.xlarge,
+    fontSize: FONT_SIZES.large,
     fontWeight: "bold",
+    color: COLORS.text,
   },
-  crearDeptoButton: {
+  createDeptoButton: {
+    backgroundColor: COLORS.primary,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.primary,
+    paddingHorizontal: 10,
     paddingVertical: 8,
-    paddingHorizontal: 12,
     borderRadius: 8,
     gap: 6,
   },
-  crearDeptoText: {
+  createDeptoText: {
     color: "#fff",
+    fontWeight: "bold",
     fontSize: FONT_SIZES.small,
-    fontWeight: "600",
   },
-  infoBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#E3F2FD",
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 15,
-    gap: 8,
+  listContent: {
+    padding: 16,
   },
-  infoText: {
-    fontSize: FONT_SIZES.small,
-    color: COLORS.primary,
-  },
-  card: {
+  userCard: {
     backgroundColor: COLORS.surface,
     padding: 15,
     borderRadius: 10,
-    marginBottom: 15,
-    elevation: 2,
+    marginBottom: 12,
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 10,
+    elevation: 2,
   },
-  name: {
+  userInfo: {
+    flex: 1,
+  },
+  userName: {
     fontSize: FONT_SIZES.medium,
     fontWeight: "bold",
-  },
-  email: {
-    fontSize: FONT_SIZES.small,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  rol: {
-    fontSize: FONT_SIZES.small,
-    marginTop: 5,
     color: COLORS.text,
   },
-  deptoPill: {
-    marginTop: 10,
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#E3F2FD",
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 999,
+  userEmail: {
+    fontSize: FONT_SIZES.small,
+    color: COLORS.textSecondary,
+    marginTop: 4,
   },
-  deptoPillDisabled: {
-    backgroundColor: "#f5f5f5",
-  },
-  deptoPillText: {
+  userRole: {
     fontSize: FONT_SIZES.small,
     color: COLORS.primary,
-    fontWeight: "500",
+    marginTop: 4,
+  },
+  userDepto: {
+    fontSize: FONT_SIZES.small,
+    color: COLORS.textSecondary,
+    marginTop: 4,
   },
   actions: {
-    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
     gap: 8,
   },
   actionButton: {
-    backgroundColor: COLORS.primary,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: "center",
-    alignItems: "center",
+    padding: 4,
   },
   emptyContainer: {
     alignItems: "center",
-    justifyContent: "center",
     paddingVertical: 60,
   },
   emptyText: {
     textAlign: "center",
     color: COLORS.textSecondary,
-    marginTop: 15,
     fontSize: FONT_SIZES.medium,
+    marginTop: 10,
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
-    padding: 20,
+    alignItems: "center",
   },
-  modalCard: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 20,
+  modalContainer: {
+    width: "90%",
     maxHeight: "80%",
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    padding: 20,
   },
   modalTitle: {
     fontSize: FONT_SIZES.large,
     fontWeight: "bold",
-    marginBottom: 4,
+    color: COLORS.text,
+    marginBottom: 10,
   },
   modalSubtitle: {
     fontSize: FONT_SIZES.small,
     color: COLORS.textSecondary,
-    marginBottom: 20,
-  },
-  deptosList: {
-    maxHeight: 300,
+    marginBottom: 15,
   },
   deptoItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
     paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
+    gap: 10,
   },
-  deptoItemText: {
-    flex: 1,
+  deptoText: {
     fontSize: FONT_SIZES.medium,
     color: COLORS.text,
   },
-  emptyDeptos: {
-    alignItems: "center",
-    paddingVertical: 40,
-  },
-  emptyDeptosText: {
-    fontSize: FONT_SIZES.medium,
-    color: COLORS.textSecondary,
-    marginTop: 15,
-    marginBottom: 20,
-  },
-  crearDesdeModalBtn: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-  },
-  crearDesdeModalText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
   input: {
-    backgroundColor: "#f5f5f5",
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: COLORS.textSecondary,
     borderRadius: 8,
     paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: FONT_SIZES.medium,
-    marginBottom: 20,
+    height: 48,
+    marginBottom: 15,
+    color: COLORS.text,
   },
-  modalFooter: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 12,
-    justifyContent: "flex-end",
+  saveButton: {
+    backgroundColor: COLORS.primary,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
   },
-  footerBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-  },
-  footerBtnText: {
+  saveButtonText: {
     color: "#fff",
     fontWeight: "bold",
-    fontSize: FONT_SIZES.medium,
+  },
+  removeDeptoButton: {
+    backgroundColor: COLORS.error,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 16,
+  },
+  removeDeptoText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  closeButton: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    backgroundColor: "#eee",
+  },
+  closeButtonText: {
+    color: COLORS.text,
+    fontWeight: "bold",
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
 });
 

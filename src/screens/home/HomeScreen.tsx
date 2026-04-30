@@ -1,3 +1,4 @@
+
 import { MaterialIcons } from "@expo/vector-icons";
 import { StackNavigationProp } from "@react-navigation/stack";
 import React, { useEffect, useState } from "react";
@@ -20,9 +21,11 @@ import { RootStackParamList } from "../../navigation/StackNavigator";
 import { COLORS, FONT_SIZES } from "../../types";
 
 import {
+  agregarComentario,
   agregarReaccion,
   crearPublicacion,
   editarPublicacion,
+  eliminarComentario,
   eliminarPublicacion,
   obtenerMuroDepartamento,
   obtenerMuroGeneral,
@@ -75,6 +78,9 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [postEditando, setPostEditando] = useState<Publicacion | null>(null);
   const [textoEditado, setTextoEditado] = useState("");
+
+  // Comentarios: texto independiente por cada post
+  const [textosComentario, setTextosComentario] = useState<Record<string, string>>({});
 
   // Permisos de publicación
   const puedePublicar =
@@ -211,6 +217,40 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const miReaccion = (post: Publicacion) =>
     post.reacciones?.find((r) => r.uid === user?.uid);
 
+  const handleEnviarComentario = async (postId: string) => {
+    const texto = textosComentario[postId]?.trim();
+    if (!texto) return;
+    try {
+      await agregarComentario(postId, {
+        texto,
+        autorUid: user!.uid,
+        autorNombre: user!.nombre,
+      });
+      setTextosComentario((prev) => ({ ...prev, [postId]: "" }));
+      cargarMuro();
+    } catch {
+      Alert.alert("Error", "No se pudo agregar el comentario");
+    }
+  };
+
+  const handleEliminarComentario = (postId: string, comentarioId: string) => {
+    Alert.alert("Eliminar comentario", "¿Seguro que deseas eliminarlo?", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Eliminar",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await eliminarComentario(postId, comentarioId);
+            cargarMuro();
+          } catch {
+            Alert.alert("Error", "No se pudo eliminar el comentario");
+          }
+        },
+      },
+    ]);
+  };
+
   // ─────────────────────────────
   // RENDER
   // ─────────────────────────────
@@ -330,22 +370,42 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
         contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
         renderItem={({ item }) => (
           <View style={styles.postCard}>
-            <Text style={styles.postAuthor}>{item.nombreUsuario}</Text>
-            <Text style={styles.postDate}>
-              {formatearFecha(item.fechaCreacion)}
-            </Text>
+            {/* Header */}
+            <View style={styles.postHeader}>
+              <View style={styles.postAutorInfo}>
+                <MaterialIcons name="account-circle" size={40} color={COLORS.primary} />
+                <View>
+                  <Text style={styles.postAuthor}>{item.nombreUsuario}</Text>
+                  <Text style={styles.postRol}>{item.rolUsuario}</Text>
+                  <Text style={styles.postDate}>{formatearFecha(item.fechaCreacion)}</Text>
+                </View>
+              </View>
 
+              {puedeModificar(item) && (
+                <View style={styles.actions}>
+                  <TouchableOpacity onPress={() => handleEditar(item)}>
+                    <MaterialIcons name="edit" size={20} color={COLORS.primary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => handleEliminar(item.id)}>
+                    <MaterialIcons name="delete" size={20} color="red" />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
+            {/* Contenido */}
             <Text style={styles.postContent}>{item.contenido}</Text>
 
+            {/* Reacciones */}
             <View style={styles.reacciones}>
-              {["me_gusta", "importante", "celebrar"].map((t) => (
+              {(["me_gusta", "importante", "celebrar"] as const).map((t) => (
                 <TouchableOpacity
                   key={t}
                   style={[
                     styles.reaccionBtn,
                     miReaccion(item)?.tipo === t && styles.reaccionActiva,
                   ]}
-                  onPress={() => handleReaccion(item.id, t as any)}
+                  onPress={() => handleReaccion(item.id, t)}
                 >
                   <Text>
                     {t === "me_gusta" ? "👍" : t === "importante" ? "⚡" : "🎉"}{" "}
@@ -355,16 +415,66 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
               ))}
             </View>
 
-            {puedeModificar(item) && (
-              <View style={styles.actions}>
-                <TouchableOpacity onPress={() => handleEditar(item)}>
-                  <MaterialIcons name="edit" size={18} />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleEliminar(item.id)}>
-                  <MaterialIcons name="delete" size={18} color="red" />
+            {/* Comentarios — visibles siempre, disponibles para todos */}
+            <View style={styles.comentariosContainer}>
+              <View style={styles.comentariosSeparador} />
+
+              {item.comentarios && item.comentarios.length > 0 && (
+                <View style={styles.comentariosList}>
+                  {item.comentarios.map((com) => (
+                    <View key={com.id} style={styles.comentarioItem}>
+                      <MaterialIcons name="account-circle" size={30} color={COLORS.textSecondary} />
+                      <View style={styles.comentarioBurbuja}>
+                        <View style={styles.comentarioHeader}>
+                          <Text style={styles.comentarioAutor}>{com.autorNombre}</Text>
+                          <Text style={styles.comentarioFecha}>
+                            {new Date(com.fecha).toLocaleDateString("es-MX", {
+                              day: "2-digit",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </Text>
+                        </View>
+                        <Text style={styles.comentarioTexto}>{com.texto}</Text>
+                      </View>
+                      {(com.autorUid === user?.uid || esAdmin) && (
+                        <TouchableOpacity
+                          onPress={() => handleEliminarComentario(item.id, com.id)}
+                          style={styles.comentarioEliminar}
+                        >
+                          <MaterialIcons name="close" size={16} color={COLORS.textSecondary} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Input para todos los usuarios */}
+              <View style={styles.nuevoComentarioRow}>
+                <MaterialIcons name="account-circle" size={32} color={COLORS.primary} />
+                <TextInput
+                  style={styles.comentarioInput}
+                  placeholder="Escribe un comentario..."
+                  value={textosComentario[item.id] ?? ""}
+                  onChangeText={(txt) =>
+                    setTextosComentario((prev) => ({ ...prev, [item.id]: txt }))
+                  }
+                  multiline
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.enviarComentario,
+                    !textosComentario[item.id]?.trim() && { opacity: 0.4 },
+                  ]}
+                  onPress={() => handleEnviarComentario(item.id)}
+                  disabled={!textosComentario[item.id]?.trim()}
+                >
+                  <MaterialIcons name="send" size={20} color="#fff" />
                 </TouchableOpacity>
               </View>
-            )}
+            </View>
           </View>
         )}
       />
@@ -480,18 +590,89 @@ const styles = StyleSheet.create({
   postCard: {
     backgroundColor: "#fff",
     padding: 16,
-    borderRadius: 10,
+    borderRadius: 12,
     marginBottom: 12,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
   },
-  postAuthor: { fontWeight: "600" },
-  postDate: { fontSize: FONT_SIZES.small, color: "#666" },
-  postContent: { marginVertical: 10 },
+  postHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 10,
+  },
+  postAutorInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flex: 1,
+  },
+  postAuthor: { fontWeight: "700", fontSize: FONT_SIZES.medium, color: COLORS.text },
+  postRol: { fontSize: FONT_SIZES.small, color: COLORS.textSecondary },
+  postDate: { fontSize: FONT_SIZES.small, color: COLORS.textSecondary, marginTop: 1 },
+  postContent: { fontSize: FONT_SIZES.medium, color: COLORS.text, lineHeight: 22, marginBottom: 12 },
 
-  reacciones: { flexDirection: "row", gap: 8 },
-  reaccionBtn: { padding: 6 },
-  reaccionActiva: { backgroundColor: "#E3F2FD" },
+  reacciones: {
+    flexDirection: "row",
+    gap: 8,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#eee",
+  },
+  reaccionBtn: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: "#f5f5f5",
+  },
+  reaccionActiva: { backgroundColor: "#E3F2FD", borderWidth: 2, borderColor: COLORS.primary },
 
   actions: { flexDirection: "row", gap: 12 },
+
+  // ── Comentarios ──────────────────────────────────────────────────────────
+  comentariosContainer: { marginTop: 4 },
+  comentariosSeparador: { height: 1, backgroundColor: "#eee", marginBottom: 10 },
+  comentariosList: { gap: 8, marginBottom: 10 },
+  comentarioItem: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  comentarioBurbuja: {
+    flex: 1,
+    backgroundColor: "#f3f4f6",
+    borderRadius: 10,
+    padding: 10,
+  },
+  comentarioHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 3,
+  },
+  comentarioAutor: { fontSize: FONT_SIZES.small, fontWeight: "700", color: COLORS.text },
+  comentarioFecha: { fontSize: 10, color: COLORS.textSecondary },
+  comentarioTexto: { fontSize: FONT_SIZES.small, color: COLORS.text, lineHeight: 18 },
+  comentarioEliminar: { padding: 4, marginTop: 4 },
+  nuevoComentarioRow: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
+  comentarioInput: {
+    flex: 1,
+    backgroundColor: "#f3f4f6",
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    fontSize: FONT_SIZES.small,
+    maxHeight: 80,
+  },
+  enviarComentario: {
+    backgroundColor: COLORS.primary,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+  },
 
   footerContainer: {
     flexDirection: "row",

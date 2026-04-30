@@ -1,4 +1,3 @@
-// src/services/eventosDeptoService.ts
 import {
   obtenerEventosDepartamento,
   obtenerEventosAsignadosDepartamento,

@@ -1,3 +1,5 @@
+
+
 import { offlineService } from './OfflineService';
 import { db } from "./firebaseConfig";
 import {
@@ -11,7 +13,7 @@ import {
   query,
   where,
 } from "firebase/firestore";
-import { Tarea, TareaFormData, EstadoTarea } from "../types/tareas";
+import { Tarea, TareaFormData, EstadoTarea, Adjunto } from "../types/tareas";
 import NetInfo from '@react-native-community/netinfo';
 
 
@@ -275,6 +277,9 @@ export async function crearTarea(
     
     etiquetas: formData.etiquetas || [],
     comentarios: [],
+
+  tipoAsignacion: formData.tipoAsignacion || "usuarios",
+  departamentoAsignado: formData.departamentoAsignado || null,
   };
 
   if (!isOnline) {
@@ -285,7 +290,7 @@ export async function crearTarea(
       creadaPor
     );
 
-    console.log("📴 Tarea guardada offline:", offlineId);
+    console.log(" Tarea guardada offline:", offlineId);
     return offlineId;
   }
 
@@ -332,9 +337,9 @@ export async function actualizarEstadoTarea(
     await offlineService.addOperation(
       'actualizar_estado_tarea',
       { tareaId, estado: nuevoEstado },
-      'current_user' // Deberías pasar el UID real
+      'current_user'
     );
-    console.log("📴 Actualización de estado guardada offline");
+    console.log(" Actualización de estado guardada offline");
     return;
   }
 
@@ -342,9 +347,9 @@ export async function actualizarEstadoTarea(
   try {
     const tareaRef = doc(db, "Tareas", tareaId);
     await updateDoc(tareaRef, updateData);
-    console.log(`✅ Estado actualizado: ${nuevoEstado}`);
+    console.log(` Estado actualizado: ${nuevoEstado}`);
   } catch (error) {
-    console.error("❌ Error al actualizar estado:", error);
+    console.error("Error al actualizar estado:", error);
     throw error;
   }
 }
@@ -389,16 +394,67 @@ export async function agregarComentario(
         { tareaId, comentarios },
         comentario.autorUid
       );
-      console.log("📴 Comentario guardado offline");
+      console.log(" Comentario guardado offline");
       return;
     }
     
     await updateDoc(tareaRef, { comentarios });
-    console.log("✅ Comentario agregado");
+    console.log(" Comentario agregado");
   } catch (error) {
-    console.error("❌ Error al agregar comentario:", error);
+    console.error(" Error al agregar comentario:", error);
     throw error;
   }
 }
 
-// El resto de las funciones permanecen igual...
+// ─────────────────────────────────────────────
+//  ADJUNTOS / ENTREGABLES  (enlaces externos)
+// ─────────────────────────────────────────────
+
+export async function agregarEnlaceAdjunto(
+  tareaId: string,
+  enlace: { nombre: string; url: string },
+  subidoPor: string,
+  nombreSubidor: string
+): Promise<Adjunto> {
+  const tareaRef = doc(db, "Tareas", tareaId);
+  const tareaSnap = await getDoc(tareaRef);
+
+  if (!tareaSnap.exists()) throw new Error("Tarea no encontrada");
+
+  const nuevoAdjunto: Adjunto = {
+    id: Date.now().toString(),
+    nombre: enlace.nombre.trim(),
+    url: enlace.url.trim(),
+    subidoPor,
+    nombreSubidor,
+    fechaSubida: new Date().toISOString(),
+  };
+
+  const adjuntosActuales: Adjunto[] = tareaSnap.data().adjuntos || [];
+  await updateDoc(tareaRef, {
+    adjuntos: [...adjuntosActuales, nuevoAdjunto],
+  });
+
+  console.log(" Enlace agregado:", nuevoAdjunto.nombre);
+  return nuevoAdjunto;
+}
+
+/**
+ * Elimina un enlace adjunto de la lista en Firestore.
+ */
+export async function eliminarAdjunto(
+  tareaId: string,
+  adjuntoId: string
+): Promise<void> {
+  const tareaRef = doc(db, "Tareas", tareaId);
+  const tareaSnap = await getDoc(tareaRef);
+
+  if (!tareaSnap.exists()) throw new Error("Tarea no encontrada");
+
+  const adjuntosActuales: Adjunto[] = tareaSnap.data().adjuntos || [];
+  await updateDoc(tareaRef, {
+    adjuntos: adjuntosActuales.filter((a) => a.id !== adjuntoId),
+  });
+
+  console.log(" Enlace eliminado:", adjuntoId);
+}

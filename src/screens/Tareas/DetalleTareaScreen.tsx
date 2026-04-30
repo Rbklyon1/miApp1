@@ -1,8 +1,11 @@
+
 import { MaterialIcons } from "@expo/vector-icons";
+import * as Linking from "expo-linking";
 import { doc, getDoc } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,10 +18,12 @@ import { db } from "../../Services/firebaseConfig";
 import {
   actualizarEstadoTarea,
   agregarComentario,
+  agregarEnlaceAdjunto,
+  eliminarAdjunto,
   eliminarTarea,
 } from "../../Services/tareasService";
 import { COLORS, FONT_SIZES } from "../../types";
-import { EstadoTarea, Tarea } from "../../types/tareas";
+import { Adjunto, EstadoTarea, Tarea } from "../../types/tareas";
 
 const DetalleTareaScreen: React.FC = ({ route, navigation }: any) => {
   const { tareaId } = route.params;
@@ -27,6 +32,12 @@ const DetalleTareaScreen: React.FC = ({ route, navigation }: any) => {
   const [tarea, setTarea] = useState<Tarea | null>(null);
   const [loading, setLoading] = useState(true);
   const [comentario, setComentario] = useState("");
+
+  // ── Modal agregar enlace ──
+  const [modalEnlaceVisible, setModalEnlaceVisible] = useState(false);
+  const [enlaceNombre, setEnlaceNombre] = useState("");
+  const [enlaceUrl, setEnlaceUrl] = useState("");
+  const [guardandoEnlace, setGuardandoEnlace] = useState(false);
   useEffect(() => {
     cargarTarea();
   }, [tareaId]);
@@ -106,6 +117,83 @@ const DetalleTareaScreen: React.FC = ({ route, navigation }: any) => {
           },
         },
       ]
+    );
+  };
+
+  // ─── Handlers de adjuntos (enlaces) ────────────────────────────────────────
+
+  const handleAbrirModalEnlace = () => {
+    setEnlaceNombre("");
+    setEnlaceUrl("");
+    setModalEnlaceVisible(true);
+  };
+
+  const handleGuardarEnlace = async () => {
+    if (!enlaceNombre.trim()) {
+      Alert.alert("Campo requerido", "Escribe un nombre para el enlace.");
+      return;
+    }
+    if (!enlaceUrl.trim()) {
+      Alert.alert("Campo requerido", "Pega la URL del archivo.");
+      return;
+    }
+    // Validación básica de URL
+    if (!enlaceUrl.trim().startsWith("http")) {
+      Alert.alert("URL inválida", "La URL debe comenzar con http:// o https://");
+      return;
+    }
+
+    setGuardandoEnlace(true);
+    try {
+      await agregarEnlaceAdjunto(
+        tareaId,
+        { nombre: enlaceNombre, url: enlaceUrl },
+        user!.uid,
+        user!.nombre
+      );
+      setModalEnlaceVisible(false);
+      await cargarTarea();
+      Alert.alert("Éxito", "Enlace agregado correctamente");
+    } catch {
+      Alert.alert("Error", "No se pudo guardar el enlace");
+    } finally {
+      setGuardandoEnlace(false);
+    }
+  };
+
+  const handleEliminarAdjunto = (adjunto: Adjunto) => {
+    const puedeEliminar =
+      adjunto.subidoPor === user?.uid || user?.rol === "Administrador";
+
+    if (!puedeEliminar) {
+      Alert.alert("Sin permiso", "Solo quien agregó el enlace o un Administrador puede eliminarlo.");
+      return;
+    }
+
+    Alert.alert(
+      "Eliminar enlace",
+      `¿Eliminar "${adjunto.nombre}"?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await eliminarAdjunto(tareaId, adjunto.id);
+              await cargarTarea();
+            } catch {
+              Alert.alert("Error", "No se pudo eliminar el enlace");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleAbrirEnlace = (url: string) => {
+    Linking.openURL(url).catch(() =>
+      Alert.alert("Error", "No se pudo abrir el enlace")
     );
   };
 
@@ -218,6 +306,117 @@ const DetalleTareaScreen: React.FC = ({ route, navigation }: any) => {
         </View>
       )}
 
+      {/* ── Adjuntos / Entregables ── */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>
+            Adjuntos ({tarea.adjuntos?.length || 0})
+          </Text>
+          <TouchableOpacity
+            style={styles.subirButton}
+            onPress={handleAbrirModalEnlace}
+          >
+            <MaterialIcons name="add-link" size={18} color="#fff" />
+            <Text style={styles.subirButtonText}>Agregar enlace</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Lista de adjuntos */}
+        {tarea.adjuntos && tarea.adjuntos.length > 0 ? (
+          tarea.adjuntos.map((adj) => (
+            <View key={adj.id} style={styles.adjuntoCard}>
+              <TouchableOpacity
+                style={styles.adjuntoInfo}
+                onPress={() => handleAbrirEnlace(adj.url)}
+              >
+                <MaterialIcons name="link" size={26} color={COLORS.primary} />
+                <View style={styles.adjuntoTextos}>
+                  <Text style={styles.adjuntoNombre} numberOfLines={1}>
+                    {adj.nombre}
+                  </Text>
+                  <Text style={styles.adjuntoMeta}>
+                    {adj.nombreSubidor} · {new Date(adj.fechaSubida).toLocaleDateString("es-ES")}
+                  </Text>
+                </View>
+                <MaterialIcons name="open-in-new" size={18} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.adjuntoEliminar}
+                onPress={() => handleEliminarAdjunto(adj)}
+              >
+                <MaterialIcons name="delete-outline" size={22} color={COLORS.error} />
+              </TouchableOpacity>
+            </View>
+          ))
+        ) : (
+          <View style={styles.adjuntosVacio}>
+            <MaterialIcons name="link-off" size={36} color="#ccc" />
+            <Text style={styles.adjuntosVacioText}>Sin enlaces adjuntos</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Modal agregar enlace */}
+      <Modal
+        visible={modalEnlaceVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalEnlaceVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitulo}>Agregar enlace</Text>
+            <Text style={styles.modalSubtitulo}>
+              Pega un enlace de Google Drive, Dropbox, OneDrive u otro servicio.
+            </Text>
+
+            <Text style={styles.modalLabel}>Nombre del archivo *</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Ej: Informe mensual.pdf"
+              value={enlaceNombre}
+              onChangeText={setEnlaceNombre}
+              autoCapitalize="none"
+            />
+
+            <Text style={styles.modalLabel}>URL del enlace *</Text>
+            <TextInput
+              style={[styles.modalInput, styles.modalInputUrl]}
+              placeholder="https://drive.google.com/..."
+              value={enlaceUrl}
+              onChangeText={setEnlaceUrl}
+              autoCapitalize="none"
+              keyboardType="url"
+              multiline
+            />
+
+            <View style={styles.modalBotones}>
+              <TouchableOpacity
+                style={styles.modalBotonCancelar}
+                onPress={() => setModalEnlaceVisible(false)}
+                disabled={guardandoEnlace}
+              >
+                <Text style={styles.modalBotonCancelarText}>Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.modalBotonGuardar,
+                  guardandoEnlace && { opacity: 0.6 },
+                ]}
+                onPress={handleGuardarEnlace}
+                disabled={guardandoEnlace}
+              >
+                <Text style={styles.modalBotonGuardarText}>
+                  {guardandoEnlace ? "Guardando..." : "Guardar"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Comentarios */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>
@@ -298,6 +497,33 @@ const getEstadoColor = (estado: EstadoTarea) => {
     default:
       return "#9E9E9E";
   }
+};
+
+/** Devuelve el nombre del ícono de MaterialIcons según el MIME type */
+const getIconoTipoArchivo = (mimeType: string): keyof typeof MaterialIcons.glyphMap => {
+  if (mimeType.startsWith("image/")) return "image";
+  if (mimeType === "application/pdf") return "picture-as-pdf";
+  if (
+    mimeType === "application/msword" ||
+    mimeType ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  )
+    return "description";
+  if (
+    mimeType === "application/vnd.ms-excel" ||
+    mimeType ===
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  )
+    return "table-chart";
+  return "insert-drive-file";
+};
+
+/** Formatea bytes a KB / MB de forma legible */
+const formatearTamanio = (bytes: number): string => {
+  if (bytes === 0) return "0 B";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
 const styles = StyleSheet.create({
@@ -452,6 +678,146 @@ const styles = StyleSheet.create({
   eliminarText: {
     color: "#fff",
     fontSize: FONT_SIZES.medium,
+    fontWeight: "bold",
+  },
+
+  // ── Adjuntos ──────────────────────────────────────────────────────────────
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  subirButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.primary,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 6,
+  },
+  subirButtonText: {
+    color: "#fff",
+    fontSize: FONT_SIZES.small,
+    fontWeight: "bold",
+  },
+  adjuntoCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f9f9f9",
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#ebebeb",
+  },
+  adjuntoInfo: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  adjuntoTextos: {
+    flex: 1,
+  },
+  adjuntoNombre: {
+    fontSize: FONT_SIZES.small,
+    fontWeight: "600",
+    color: COLORS.text,
+  },
+  adjuntoMeta: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  adjuntoEliminar: {
+    padding: 6,
+  },
+  adjuntosVacio: {
+    alignItems: "center",
+    paddingVertical: 20,
+    gap: 6,
+  },
+  adjuntosVacioText: {
+    fontSize: FONT_SIZES.small,
+    color: COLORS.textSecondary,
+    fontStyle: "italic",
+  },
+
+  // ── Modal enlace ──────────────────────────────────────────────────────────
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContainer: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    paddingBottom: 36,
+  },
+  modalTitulo: {
+    fontSize: FONT_SIZES.large,
+    fontWeight: "bold",
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  modalSubtitulo: {
+    fontSize: FONT_SIZES.small,
+    color: COLORS.textSecondary,
+    marginBottom: 20,
+    lineHeight: 18,
+  },
+  modalLabel: {
+    fontSize: FONT_SIZES.small,
+    fontWeight: "600",
+    color: COLORS.text,
+    marginBottom: 6,
+  },
+  modalInput: {
+    backgroundColor: "#f5f5f5",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: FONT_SIZES.medium,
+    marginBottom: 16,
+    color: COLORS.text,
+  },
+  modalInputUrl: {
+    minHeight: 60,
+    textAlignVertical: "top",
+  },
+  modalBotones: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 4,
+  },
+  modalBotonCancelar: {
+    flex: 1,
+    paddingVertical: 13,
+    borderRadius: 8,
+    backgroundColor: "#f0f0f0",
+    alignItems: "center",
+  },
+  modalBotonCancelarText: {
+    fontSize: FONT_SIZES.medium,
+    color: COLORS.text,
+    fontWeight: "600",
+  },
+  modalBotonGuardar: {
+    flex: 1,
+    paddingVertical: 13,
+    borderRadius: 8,
+    backgroundColor: COLORS.primary,
+    alignItems: "center",
+  },
+  modalBotonGuardarText: {
+    fontSize: FONT_SIZES.medium,
+    color: "#fff",
     fontWeight: "bold",
   },
 });

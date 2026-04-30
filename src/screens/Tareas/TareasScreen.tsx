@@ -1,7 +1,7 @@
+
 import { MaterialIcons } from "@expo/vector-icons";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
-  Alert,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -10,62 +10,23 @@ import {
   View,
 } from "react-native";
 import { useUser } from "../../context/UserContext";
-import {
-  obtenerTareasAsignadas,
-  obtenerTareasCreadasPor,
-  obtenerTareasDeEmpresa,
-} from "../../Services/tareasService";
 import { COLORS, FONT_SIZES } from "../../types";
 import { EstadoTarea, Tarea } from "../../types/tareas";
 
-type VistaFiltro = "todas" | "asignadas" | "creadas";
+import { useTareas } from "../../Hooks/useTareas"; 
 
 const TareasScreen: React.FC = ({ navigation }: any) => {
   const { user } = useUser();
-  const [tareas, setTareas] = useState<Tarea[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [vistaActual, setVistaActual] = useState<VistaFiltro>("asignadas");
 
-  const esAdmin = user?.rol === "Administrador";
-
-  useEffect(() => {
-    if (user?.empresaSeleccionada) {
-      cargarTareas();
-    }
-  }, [user?.empresaSeleccionada, vistaActual]);
-
-  const cargarTareas = async () => {
-    if (!user?.empresaSeleccionada) return;
-
-    setLoading(true);
-    try {
-      let data: Tarea[] = [];
-
-      switch (vistaActual) {
-        case "todas":
-          data = await obtenerTareasDeEmpresa(user.empresaSeleccionada);
-          break;
-        case "asignadas":
-          data = await obtenerTareasAsignadas(
-            user.uid,
-            user.empresaSeleccionada
-          );
-          break;
-        case "creadas":
-          data = await obtenerTareasCreadasPor(
-            user.uid,
-            user.empresaSeleccionada
-          );
-          break;
-      }
-
-      setTareas(data);
-    } catch {
-      Alert.alert("Error", "No se pudieron cargar las tareas");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    tareas,
+    loading,
+    vistaActual,
+    setVistaActual,
+    esAdmin,
+    puedeCrear,
+    refetch,
+  } = useTareas(user);
 
   const renderTarea = ({ item }: { item: Tarea }) => (
     <TouchableOpacity
@@ -75,6 +36,7 @@ const TareasScreen: React.FC = ({ navigation }: any) => {
       <View style={styles.tareaHeader}>
         <View style={styles.tareaHeaderLeft}>
           <Text style={styles.tareaTitulo}>{item.titulo}</Text>
+
           <View
             style={[
               styles.prioridadBadge,
@@ -84,6 +46,7 @@ const TareasScreen: React.FC = ({ navigation }: any) => {
             <Text style={styles.prioridadText}>{item.prioridad}</Text>
           </View>
         </View>
+
         <View
           style={[
             styles.estadoBadge,
@@ -110,11 +73,7 @@ const TareasScreen: React.FC = ({ navigation }: any) => {
 
         {item.fechaVencimiento && (
           <View style={styles.infoRow}>
-            <MaterialIcons
-              name="event"
-              size={16}
-              color={COLORS.textSecondary}
-            />
+            <MaterialIcons name="event" size={16} color={COLORS.textSecondary} />
             <Text style={styles.infoText}>
               {new Date(item.fechaVencimiento).toLocaleDateString("es-ES")}
             </Text>
@@ -188,7 +147,7 @@ const TareasScreen: React.FC = ({ navigation }: any) => {
         keyExtractor={(item) => item.id}
         renderItem={renderTarea}
         refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={cargarTareas} />
+          <RefreshControl refreshing={loading} onRefresh={refetch} />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
@@ -204,7 +163,7 @@ const TareasScreen: React.FC = ({ navigation }: any) => {
       />
 
       {/* Botón flotante para crear tarea */}
-      {(esAdmin || user?.rol === "Jefe") && (
+      {puedeCrear && (
         <TouchableOpacity
           style={styles.fab}
           onPress={() => navigation.navigate("CrearTarea")}
@@ -216,6 +175,7 @@ const TareasScreen: React.FC = ({ navigation }: any) => {
   );
 };
 
+/** Helpers de presentación (UI) se quedan en Screen */
 const getPrioridadColor = (prioridad: string) => {
   switch (prioridad) {
     case "Baja":

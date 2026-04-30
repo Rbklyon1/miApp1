@@ -1,3 +1,4 @@
+
 import { MaterialIcons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
@@ -19,9 +20,11 @@ import {
   Departamento,
 } from "../../Services/departamentosService";
 import {
+  agregarComentario,
   agregarReaccion,
   crearPublicacion,
   editarPublicacion,
+  eliminarComentario,
   eliminarPublicacion,
   obtenerMuroDepartamento,
   Publicacion,
@@ -60,6 +63,9 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
   const esAdmin = user?.rol === "Administrador";
   const esJefe = user?.rol === "Jefe";
   const puedePublicar = esAdmin || esJefe;
+
+  // Comentarios: texto independiente por cada post
+  const [textosComentario, setTextosComentario] = useState<Record<string, string>>({});
 
   // Determinar qué departamento mostrar
   const departamentoActual = esAdmin
@@ -217,6 +223,41 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
 
   const miReaccion = (post: Publicacion) => {
     return post.reacciones?.find((r) => r.uid === user?.uid);
+  };
+
+  const handleEnviarComentario = async (postId: string) => {
+    const texto = textosComentario[postId]?.trim();
+    if (!texto) return;
+    try {
+      await agregarComentario(postId, {
+        texto,
+        autorUid: user!.uid,
+        autorNombre: user!.nombre,
+      });
+      // Limpiar solo el input de ese post
+      setTextosComentario((prev) => ({ ...prev, [postId]: "" }));
+      cargarMuro();
+    } catch {
+      Alert.alert("Error", "No se pudo agregar el comentario");
+    }
+  };
+
+  const handleEliminarComentario = (postId: string, comentarioId: string) => {
+    Alert.alert("Eliminar comentario", "¿Seguro que deseas eliminarlo?", [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Eliminar",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await eliminarComentario(postId, comentarioId);
+            cargarMuro();
+          } catch {
+            Alert.alert("Error", "No se pudo eliminar el comentario");
+          }
+        },
+      },
+    ]);
   };
 
   const cambiarDepartamento = (depto: Departamento) => {
@@ -397,6 +438,75 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
                   {contarReacciones(item, "celebrar")}
                 </Text>
               </TouchableOpacity>
+            </View>
+
+            {/* Comentarios — siempre visibles, como en Facebook */}
+            <View style={styles.comentariosContainer}>
+              {/* Separador */}
+              <View style={styles.comentariosSeparador} />
+
+              {/* Lista de comentarios existentes */}
+              {item.comentarios && item.comentarios.length > 0 && (
+                <View style={styles.comentariosList}>
+                  {item.comentarios.map((com) => (
+                    <View key={com.id} style={styles.comentarioItem}>
+                      <MaterialIcons
+                        name="account-circle"
+                        size={30}
+                        color={COLORS.textSecondary}
+                      />
+                      <View style={styles.comentarioBurbuja}>
+                        <View style={styles.comentarioHeader}>
+                          <Text style={styles.comentarioAutor}>
+                            {com.autorNombre}
+                          </Text>
+                          <Text style={styles.comentarioFecha}>
+                            {new Date(com.fecha).toLocaleDateString("es-MX", {
+                              day: "2-digit",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </Text>
+                        </View>
+                        <Text style={styles.comentarioTexto}>{com.texto}</Text>
+                      </View>
+                      {(com.autorUid === user?.uid || esAdmin) && (
+                        <TouchableOpacity
+                          onPress={() => handleEliminarComentario(item.id, com.id)}
+                          style={styles.comentarioEliminar}
+                        >
+                          <MaterialIcons name="close" size={16} color={COLORS.textSecondary} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Input para escribir comentario — disponible para TODOS */}
+              <View style={styles.nuevoComentarioRow}>
+                <MaterialIcons name="account-circle" size={32} color={COLORS.primary} />
+                <TextInput
+                  style={styles.comentarioInput}
+                  placeholder="Escribe un comentario..."
+                  value={textosComentario[item.id] ?? ""}
+                  onChangeText={(txt) =>
+                    setTextosComentario((prev) => ({ ...prev, [item.id]: txt }))
+                  }
+                  multiline
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.enviarComentario,
+                    !textosComentario[item.id]?.trim() && { opacity: 0.4 },
+                  ]}
+                  onPress={() => handleEnviarComentario(item.id)}
+                  disabled={!textosComentario[item.id]?.trim()}
+                >
+                  <MaterialIcons name="send" size={20} color="#fff" />
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         )}
@@ -732,6 +842,77 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.small,
     color: COLORS.text,
     fontWeight: "500",
+  },
+
+  // ── Comentarios ──────────────────────────────────────────────────────────
+  comentariosContainer: {
+    marginTop: 4,
+  },
+  comentariosSeparador: {
+    height: 1,
+    backgroundColor: "#eee",
+    marginBottom: 10,
+  },
+  comentariosList: {
+    gap: 8,
+    marginBottom: 10,
+  },
+  comentarioItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+  },
+  comentarioBurbuja: {
+    flex: 1,
+    backgroundColor: "#f3f4f6",
+    borderRadius: 10,
+    padding: 10,
+  },
+  comentarioHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 3,
+  },
+  comentarioAutor: {
+    fontSize: FONT_SIZES.small,
+    fontWeight: "700",
+    color: COLORS.text,
+  },
+  comentarioFecha: {
+    fontSize: 10,
+    color: COLORS.textSecondary,
+  },
+  comentarioTexto: {
+    fontSize: FONT_SIZES.small,
+    color: COLORS.text,
+    lineHeight: 18,
+  },
+  comentarioEliminar: {
+    padding: 4,
+    marginTop: 4,
+  },
+  nuevoComentarioRow: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 8,
+  },
+  comentarioInput: {
+    flex: 1,
+    backgroundColor: "#f3f4f6",
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    fontSize: FONT_SIZES.small,
+    maxHeight: 80,
+  },
+  enviarComentario: {
+    backgroundColor: COLORS.primary,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
   },
   emptyContainer: {
     alignItems: "center",

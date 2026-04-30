@@ -86,7 +86,6 @@ export const crearPublicacion = async (data: {
       data.creadaPor
     );
 
-    console.log("📴 Publicación guardada offline:", offlineId);
     return offlineId;
   }
 
@@ -106,10 +105,8 @@ export const crearPublicacion = async (data: {
       reacciones: [],
     });
 
-    console.log("✅ Publicación creada:", docRef.id);
     return docRef.id;
   } catch (error) {
-    console.error("❌ Error creando publicación:", error);
     throw error;
   }
 };
@@ -138,7 +135,6 @@ export const obtenerMuroGeneral = async (empresaId: string): Promise<Publicacion
       return fechaB - fechaA;
     });
   } catch (error) {
-    console.error("❌ Error obteniendo muro general:", error);
     throw error;
   }
 };
@@ -186,7 +182,6 @@ export const editarPublicacion = async (
       { postId, contenido },
       'current_user' // Deberías pasar el UID real
     );
-    console.log("📴 Edición guardada offline");
     return;
   }
 
@@ -196,9 +191,7 @@ export const editarPublicacion = async (
       contenido,
       fechaActualizacion: serverTimestamp(),
     });
-    console.log("✅ Publicación editada");
   } catch (error) {
-    console.error("❌ Error editando publicación:", error);
     throw error;
   }
 };
@@ -209,9 +202,7 @@ export const editarPublicacion = async (
 export const eliminarPublicacion = async (postId: string): Promise<void> => {
   try {
     await deleteDoc(doc(db, "Publicaciones", postId));
-    console.log("✅ Publicación eliminada");
   } catch (error) {
-    console.error("❌ Error eliminando publicación:", error);
     throw error;
   }
 };

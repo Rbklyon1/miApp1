@@ -45,6 +45,9 @@ export interface Evento {
   // Opcionales
   adjuntos?: string[];
   notas?: string;
+
+  tipoAsignacion?: "usuarios" | "departamento";
+  departamentoAsignado?: string | null;
 }
 
 export interface EventoFormData {
@@ -61,4 +64,6 @@ export interface EventoFormData {
   asistentesUids: string[];
   capacidadMaxima?: number;
   notas?: string;
+  tipoAsignacion?: "usuarios" | "departamento";
+  departamentoAsignado?: string | null;
 }

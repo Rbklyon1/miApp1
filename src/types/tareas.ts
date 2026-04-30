@@ -3,6 +3,15 @@ export type PrioridadTarea = "Baja" | "Media" | "Alta" | "Urgente";
 export type EstadoTarea = "Pendiente" | "En Progreso" | "Completada" | "Cancelada";
 
 
+export interface Adjunto {
+  id: string;
+  nombre: string;      
+  url: string;         // enlace externo (Drive, Dropbox, OneDrive, etc.)
+  subidoPor: string;   // uid del usuario
+  nombreSubidor: string;
+  fechaSubida: string;
+}
+
 export interface Tarea {
   id: string;
   titulo: string;
@@ -20,6 +29,8 @@ export interface Tarea {
   nombreCreador: string;
   asignadoA: string[];
   nombresAsignados: string[]; 
+  tipoAsignacion? : "usuarios" | "departamento";
+  departamentoAsignado?: string | null ;
   
   // Contexto empresarial
   empresaId: string;
@@ -27,7 +38,7 @@ export interface Tarea {
   
   // Opcionales
   etiquetas?: string[];
-  adjuntos?: string[]; 
+  adjuntos?: Adjunto[]; 
   comentarios?: Comentario[];
 }
 
@@ -46,4 +57,6 @@ export interface TareaFormData {
   fechaVencimiento?: Date;
   asignadoA: string[];
   etiquetas?: string[];
+  tipoAsignacion? : "usuarios" | "departamento";
+  departamentoAsignado?: string | null ;
 }
