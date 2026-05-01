@@ -40,7 +40,6 @@ import CrearTareaScreen from "../screens/Tareas/CrearTareaScreen";
 import DetalleTareaScreen from "../screens/Tareas/DetalleTareaScreen";
 import TareasDeptoScreen from "../screens/Tareas/TareasDptoScreen";
 import TareasScreen from "../screens/Tareas/TareasScreen";
-
 //  Tipo de parámetros de navegación
 export type RootStackParamList = {
   Login: undefined;
@@ -276,6 +275,7 @@ const StackNavigator: React.FC = () => {
           component={EventosDeptoScreen}
           options={{ title: "Evento Departamental" }}
         />
+
       </Stack.Navigator>
 
       {/*  Modal del Menú */}

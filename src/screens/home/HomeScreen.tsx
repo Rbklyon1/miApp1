@@ -513,6 +513,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
         >
           <MaterialIcons name="event" size={26} />
         </TouchableOpacity>
+
       </View>
 
       {/* MODAL CREAR */}

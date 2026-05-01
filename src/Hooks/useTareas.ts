@@ -1,3 +1,4 @@
+import { obtenerTareasRailway } from './../Services/railwayApiService';
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert } from "react-native";
 import { Tarea } from "../types/tareas";
@@ -44,15 +45,42 @@ export function useTareas(user: UserLike | null | undefined) {
           data = await obtenerTareasCreadasPor(uid, empresaId);
           break;
       }
+    try {
+      const tareasFastAPI = await obtenerTareasRailway();
+      console.log("FASTAPI RAW:", tareasFastAPI);
+      
+    const tareasAdaptadas = tareasFastAPI.map((t: any) => ({
+      id: `fastapi-${t.id}`,
+      titulo: t.titulo,
+      descripcion: t.descripcion || "",
+      prioridad: t.prioridad || "Media",
+      estado: t.estado || "Pendiente",
+      fechaCreacion: new Date().toISOString(),
+      fechaVencimiento: undefined,
+      fechaCompletada: undefined,
+      creadaPor: t.creadaPor || "",
+      nombreCreador: t.nombreCreador || "FastAPI",
+      asignadoA: t.asignadoA || [],
+      nombresAsignados: t.nombresAsignados || [],
+      empresaId: t.empresaId || empresaId,
+      empresaNombre: "",
+      etiquetas: [],
+      comentarios: [],
+      adjuntos: []
+    })) as Tarea[];
 
+      setTareas([...tareasAdaptadas, ...data]);
+    } catch (error) {
+      console.log("No se pudieron cargar tareas desde FastAPI:", error);
       setTareas(data);
-    } catch {
-      Alert.alert("Error", "No se pudieron cargar las tareas");
-    } finally {
-      setLoading(false);
     }
-  }, [empresaId, uid, vistaActual]);
-
+  } catch {
+    Alert.alert("Error", "No se pudieron cargar las tareas");
+  } finally {
+    setLoading(false);
+  }
+}, [empresaId, uid, vistaActual]);
+ 
   useEffect(() => {
     if (empresaId) refetch();
   }, [empresaId, vistaActual, refetch]);

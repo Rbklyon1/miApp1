@@ -17,6 +17,7 @@ import { crearTarea } from "../../Services/tareasService";
 import { COLORS, FONT_SIZES } from "../../types/index";
 import { PrioridadTarea } from "../../types/tareas";
 import { cargarDepartamentos, Departamento} from "../../Services/departamentosService";
+import { crearTareaRealRailway } from "../../Services/railwayApiService";
 
 const CrearTareaScreen: React.FC = ({ navigation }: any) => {
   const { user } = useUser();
@@ -170,23 +171,16 @@ const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<string>
 
   setIsLoading(true);
   try {
-    await crearTarea(
-      {
-        titulo,
-        descripcion,
-        prioridad,
-        fechaVencimiento,
-        asignadoA: uidsFinales,
-        tipoAsignacion: user?.rol === "Administrador" ? modoAsignacion : "usuarios",
-        departamentoAsignado: departamentoFinal,
-      },
-      user?.uid!,
-      user?.nombre!,
-      user?.empresaSeleccionada!,
-      user?.empresaNombre!,
-      nombresAsignados,
-      user?.rol
-    );
+    await crearTareaRealRailway({
+  titulo,
+  descripcion,
+  prioridad,
+  creadaPor: user?.uid!,
+  nombreCreador: user?.nombre!,
+  empresaId: user?.empresaSeleccionada!,
+  asignadoA: usuariosSeleccionados,
+  nombresAsignados,
+});
 
     Alert.alert("Éxito", "Tarea creada correctamente", [
       { text: "OK", onPress: () => navigation.goBack() },
