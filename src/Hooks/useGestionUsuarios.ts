@@ -36,8 +36,8 @@ export function useGestionUsuarios(user: any, recargarUsuario: any) {
   const [creandoDepto, setCreandoDepto] = useState(false);
 
   const empresaActiva = useMemo(
-    () => user?.empresaSeleccionada || user?.empresaId || null,
-    [user?.empresaSeleccionada, user?.empresaId]
+    () =>  user?.empresaId || null,
+    [ user?.empresaId]
   );
 
   const esAdmin = user?.rol === "Administrador";

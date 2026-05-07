@@ -529,6 +529,9 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
             <TouchableOpacity onPress={crearPost}>
               <Text style={styles.publish}>Publicar</Text>
             </TouchableOpacity>
+             <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <Text style={styles.publish}>cancelar</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>

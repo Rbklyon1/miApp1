@@ -1,5 +1,4 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import React from "react";
 import {
   Modal,
   ScrollView,
@@ -11,35 +10,84 @@ import {
   View,
 } from "react-native";
 import { useUser } from "../../context/UserContext";
-import { useCrearEvento } from "../../Hooks/Eventos/useCrearEvento";
 import { COLORS, FONT_SIZES } from "../../types/index";
+import React from "react";
+import { useEditarEvento } from "../../Hooks/Eventos/useEditarEvento";
 
-const CrearEventoScreen: React.FC = ({ navigation }: any) => {
+const EditarEventoScreen: React.FC = ({ route, navigation }: any) => {
+  const { eventoId } = route.params;
   const { user } = useUser();
 
-  const eventoForm = useCrearEvento(user, navigation);
+  const {
+    titulo,
+    setTitulo,
+    descripcion,
+    setDescripcion,
+    tipo,
+    setTipo,
+    fechaInicio,
+    horaInicio,
+    setHoraInicio,
+    fechaFin,
+    horaFin,
+    setHoraFin,
+    ubicacion,
+    setUbicacion,
+    esVirtual,
+    setEsVirtual,
+    linkVirtual,
+    setLinkVirtual,
+    capacidadMaxima,
+    setCapacidadMaxima,
+    notas,
+    setNotas,
+    mostrarModalFechaInicio,
+    setMostrarModalFechaInicio,
+    mostrarModalFechaFin,
+    setMostrarModalFechaFin,
+    diaInicioSeleccionado,
+    setDiaInicioSeleccionado,
+    mesInicioSeleccionado,
+    setMesInicioSeleccionado,
+    anioInicioSeleccionado,
+    setAnioInicioSeleccionado,
+    diaFinSeleccionado,
+    setDiaFinSeleccionado,
+    mesFinSeleccionado,
+    setMesFinSeleccionado,
+    anioFinSeleccionado,
+    setAnioFinSeleccionado,
+    isLoading,
+    tiposEvento,
+    meses,
+    obtenerDiasDelMes,
+    confirmarFechaInicio,
+    confirmarFechaFin,
+    limpiarFechaFin,
+    handleEditarEvento,
+  } = useEditarEvento(eventoId, user, navigation);
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.sectionTitle}>Información del evento</Text>
+      <Text style={styles.sectionTitle}>Editar evento</Text>
 
       <Text style={styles.label}>Título *</Text>
       <TextInput
         style={styles.input}
         placeholder="Ej: Reunión de equipo"
-        value={eventoForm.titulo}
-        onChangeText={eventoForm.setTitulo}
+        value={titulo}
+        onChangeText={setTitulo}
       />
 
       <Text style={styles.label}>Tipo de evento</Text>
       <View style={styles.tipoContainer}>
-        {eventoForm.tiposEvento.map((t) => (
+        {tiposEvento.map((t) => (
           <TouchableOpacity
             key={t}
-            style={[styles.tipoButton, eventoForm.tipo === t && styles.tipoButtonActive]}
-            onPress={() => eventoForm.setTipo(t)}
+            style={[styles.tipoButton, tipo === t && styles.tipoButtonActive]}
+            onPress={() => setTipo(t)}
           >
-            <Text style={[styles.tipoText, eventoForm.tipo === t && styles.tipoTextActive]}>
+            <Text style={[styles.tipoText, tipo === t && styles.tipoTextActive]}>
               {t}
             </Text>
           </TouchableOpacity>
@@ -50,8 +98,8 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
       <TextInput
         style={[styles.input, styles.textArea]}
         placeholder="Detalles del evento..."
-        value={eventoForm.descripcion}
-        onChangeText={eventoForm.setDescripcion}
+        value={descripcion}
+        onChangeText={setDescripcion}
         multiline
         numberOfLines={4}
       />
@@ -63,11 +111,11 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
           <Text style={styles.label}>Fecha inicio *</Text>
           <TouchableOpacity
             style={styles.dateButton}
-            onPress={() => eventoForm.setMostrarModalFechaInicio(true)}
+            onPress={() => setMostrarModalFechaInicio(true)}
           >
             <MaterialIcons name="event" size={18} color={COLORS.primary} />
             <Text style={styles.dateText}>
-              {eventoForm.fechaInicio.toLocaleDateString("es-ES")}
+              {fechaInicio.toLocaleDateString("es-ES")}
             </Text>
           </TouchableOpacity>
         </View>
@@ -77,17 +125,17 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
           <TextInput
             style={styles.input}
             placeholder="09:00"
-            value={eventoForm.horaInicio}
-            onChangeText={eventoForm.setHoraInicio}
+            value={horaInicio}
+            onChangeText={setHoraInicio}
           />
         </View>
       </View>
 
       <Modal
-        visible={eventoForm.mostrarModalFechaInicio}
+        visible={mostrarModalFechaInicio}
         transparent
         animationType="slide"
-        onRequestClose={() => eventoForm.setMostrarModalFechaInicio(false)}
+        onRequestClose={() => setMostrarModalFechaInicio(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
@@ -100,14 +148,14 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
                   key={anio}
                   style={[
                     styles.pickerButton,
-                    eventoForm.anioInicioSeleccionado === anio && styles.pickerButtonActive,
+                    anioInicioSeleccionado === anio && styles.pickerButtonActive,
                   ]}
-                  onPress={() => eventoForm.setAnioInicioSeleccionado(anio)}
+                  onPress={() => setAnioInicioSeleccionado(anio)}
                 >
                   <Text
                     style={[
                       styles.pickerButtonText,
-                      eventoForm.anioInicioSeleccionado === anio && styles.pickerButtonTextActive,
+                      anioInicioSeleccionado === anio && styles.pickerButtonTextActive,
                     ]}
                   >
                     {anio}
@@ -118,19 +166,19 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
 
             <Text style={styles.pickerLabel}>Mes</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pickerScroll}>
-              {eventoForm.meses.map((mes, index) => (
+              {meses.map((mes, index) => (
                 <TouchableOpacity
                   key={mes}
                   style={[
                     styles.pickerButton,
-                    eventoForm.mesInicioSeleccionado === index && styles.pickerButtonActive,
+                    mesInicioSeleccionado === index && styles.pickerButtonActive,
                   ]}
-                  onPress={() => eventoForm.setMesInicioSeleccionado(index)}
+                  onPress={() => setMesInicioSeleccionado(index)}
                 >
                   <Text
                     style={[
                       styles.pickerButtonText,
-                      eventoForm.mesInicioSeleccionado === index && styles.pickerButtonTextActive,
+                      mesInicioSeleccionado === index && styles.pickerButtonTextActive,
                     ]}
                   >
                     {mes}
@@ -142,26 +190,21 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
             <Text style={styles.pickerLabel}>Día</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pickerScroll}>
               {Array.from(
-                {
-                  length: eventoForm.obtenerDiasDelMes(
-                    eventoForm.mesInicioSeleccionado,
-                    eventoForm.anioInicioSeleccionado
-                  ),
-                },
+                { length: obtenerDiasDelMes(mesInicioSeleccionado, anioInicioSeleccionado) },
                 (_, i) => i + 1
               ).map((dia) => (
                 <TouchableOpacity
                   key={dia}
                   style={[
                     styles.pickerButton,
-                    eventoForm.diaInicioSeleccionado === dia && styles.pickerButtonActive,
+                    diaInicioSeleccionado === dia && styles.pickerButtonActive,
                   ]}
-                  onPress={() => eventoForm.setDiaInicioSeleccionado(dia)}
+                  onPress={() => setDiaInicioSeleccionado(dia)}
                 >
                   <Text
                     style={[
                       styles.pickerButtonText,
-                      eventoForm.diaInicioSeleccionado === dia && styles.pickerButtonTextActive,
+                      diaInicioSeleccionado === dia && styles.pickerButtonTextActive,
                     ]}
                   >
                     {dia}
@@ -173,14 +216,14 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={styles.modalButtonSecondary}
-                onPress={() => eventoForm.setMostrarModalFechaInicio(false)}
+                onPress={() => setMostrarModalFechaInicio(false)}
               >
                 <Text style={styles.modalButtonSecondaryText}>Cancelar</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.modalButtonPrimary}
-                onPress={eventoForm.confirmarFechaInicio}
+                onPress={confirmarFechaInicio}
               >
                 <Text style={styles.modalButtonPrimaryText}>Confirmar</Text>
               </TouchableOpacity>
@@ -191,14 +234,14 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
 
       <View style={styles.dateTimeRow}>
         <View style={styles.dateTimeColumn}>
-          <Text style={styles.label}>Fecha fin (opcional)</Text>
+          <Text style={styles.label}>Fecha fin opcional</Text>
           <TouchableOpacity
             style={styles.dateButton}
-            onPress={() => eventoForm.setMostrarModalFechaFin(true)}
+            onPress={() => setMostrarModalFechaFin(true)}
           >
             <MaterialIcons name="event" size={18} color={COLORS.primary} />
             <Text style={styles.dateText}>
-              {eventoForm.fechaFin ? eventoForm.fechaFin.toLocaleDateString("es-ES") : "Seleccionar"}
+              {fechaFin ? fechaFin.toLocaleDateString("es-ES") : "Seleccionar"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -208,17 +251,17 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
           <TextInput
             style={styles.input}
             placeholder="18:00"
-            value={eventoForm.horaFin}
-            onChangeText={eventoForm.setHoraFin}
+            value={horaFin}
+            onChangeText={setHoraFin}
           />
         </View>
       </View>
 
       <Modal
-        visible={eventoForm.mostrarModalFechaFin}
+        visible={mostrarModalFechaFin}
         transparent
         animationType="slide"
-        onRequestClose={() => eventoForm.setMostrarModalFechaFin(false)}
+        onRequestClose={() => setMostrarModalFechaFin(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
@@ -231,14 +274,14 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
                   key={anio}
                   style={[
                     styles.pickerButton,
-                    eventoForm.anioFinSeleccionado === anio && styles.pickerButtonActive,
+                    anioFinSeleccionado === anio && styles.pickerButtonActive,
                   ]}
-                  onPress={() => eventoForm.setAnioFinSeleccionado(anio)}
+                  onPress={() => setAnioFinSeleccionado(anio)}
                 >
                   <Text
                     style={[
                       styles.pickerButtonText,
-                      eventoForm.anioFinSeleccionado === anio && styles.pickerButtonTextActive,
+                      anioFinSeleccionado === anio && styles.pickerButtonTextActive,
                     ]}
                   >
                     {anio}
@@ -249,19 +292,19 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
 
             <Text style={styles.pickerLabel}>Mes</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pickerScroll}>
-              {eventoForm.meses.map((mes, index) => (
+              {meses.map((mes, index) => (
                 <TouchableOpacity
                   key={mes}
                   style={[
                     styles.pickerButton,
-                    eventoForm.mesFinSeleccionado === index && styles.pickerButtonActive,
+                    mesFinSeleccionado === index && styles.pickerButtonActive,
                   ]}
-                  onPress={() => eventoForm.setMesFinSeleccionado(index)}
+                  onPress={() => setMesFinSeleccionado(index)}
                 >
                   <Text
                     style={[
                       styles.pickerButtonText,
-                      eventoForm.mesFinSeleccionado === index && styles.pickerButtonTextActive,
+                      mesFinSeleccionado === index && styles.pickerButtonTextActive,
                     ]}
                   >
                     {mes}
@@ -273,26 +316,21 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
             <Text style={styles.pickerLabel}>Día</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pickerScroll}>
               {Array.from(
-                {
-                  length: eventoForm.obtenerDiasDelMes(
-                    eventoForm.mesFinSeleccionado,
-                    eventoForm.anioFinSeleccionado
-                  ),
-                },
+                { length: obtenerDiasDelMes(mesFinSeleccionado, anioFinSeleccionado) },
                 (_, i) => i + 1
               ).map((dia) => (
                 <TouchableOpacity
                   key={dia}
                   style={[
                     styles.pickerButton,
-                    eventoForm.diaFinSeleccionado === dia && styles.pickerButtonActive,
+                    diaFinSeleccionado === dia && styles.pickerButtonActive,
                   ]}
-                  onPress={() => eventoForm.setDiaFinSeleccionado(dia)}
+                  onPress={() => setDiaFinSeleccionado(dia)}
                 >
                   <Text
                     style={[
                       styles.pickerButtonText,
-                      eventoForm.diaFinSeleccionado === dia && styles.pickerButtonTextActive,
+                      diaFinSeleccionado === dia && styles.pickerButtonTextActive,
                     ]}
                   >
                     {dia}
@@ -304,14 +342,14 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={styles.modalButtonSecondary}
-                onPress={eventoForm.limpiarFechaFin}
+                onPress={limpiarFechaFin}
               >
                 <Text style={styles.modalButtonSecondaryText}>Limpiar</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.modalButtonPrimary}
-                onPress={eventoForm.confirmarFechaFin}
+                onPress={confirmarFechaFin}
               >
                 <Text style={styles.modalButtonPrimaryText}>Confirmar</Text>
               </TouchableOpacity>
@@ -325,20 +363,20 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
       <View style={styles.switchRow}>
         <Text style={styles.label}>Evento virtual</Text>
         <Switch
-          value={eventoForm.esVirtual}
-          onValueChange={eventoForm.setEsVirtual}
+          value={esVirtual}
+          onValueChange={setEsVirtual}
           trackColor={{ false: "#ddd", true: COLORS.primary }}
         />
       </View>
 
-      {eventoForm.esVirtual ? (
+      {esVirtual ? (
         <>
           <Text style={styles.label}>Link virtual *</Text>
           <TextInput
             style={styles.input}
             placeholder="https://meet.google.com/..."
-            value={eventoForm.linkVirtual}
-            onChangeText={eventoForm.setLinkVirtual}
+            value={linkVirtual}
+            onChangeText={setLinkVirtual}
             autoCapitalize="none"
           />
         </>
@@ -348,60 +386,15 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
           <TextInput
             style={styles.input}
             placeholder="Ej: Sala de juntas"
-            value={eventoForm.ubicacion}
-            onChangeText={eventoForm.setUbicacion}
+            value={ubicacion}
+            onChangeText={setUbicacion}
           />
         </>
       )}
 
-      {user?.rol === "Administrador" && (
-        <>
-          <Text style={styles.sectionTitle}>Modo de asignación</Text>
-          <View style={styles.tipoContainer}>
-            <TouchableOpacity
-              style={[
-                styles.tipoButton,
-                eventoForm.modoAsignacion === "usuarios" && styles.tipoButtonActive,
-              ]}
-              onPress={() => eventoForm.setModoAsignacion("usuarios")}
-            >
-              <Text
-                style={[
-                  styles.tipoText,
-                  eventoForm.modoAsignacion === "usuarios" && styles.tipoTextActive,
-                ]}
-              >
-                Usuarios
-              </Text>
-            </TouchableOpacity>
+      <Text style={styles.sectionTitle}>Asistentes *</Text>
 
-            <TouchableOpacity
-              style={[
-                styles.tipoButton,
-                eventoForm.modoAsignacion === "departamento" && styles.tipoButtonActive,
-              ]}
-              onPress={() => eventoForm.setModoAsignacion("departamento")}
-            >
-              <Text
-                style={[
-                  styles.tipoText,
-                  eventoForm.modoAsignacion === "departamento" && styles.tipoTextActive,
-                ]}
-              >
-                Departamento
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </>
-      )}
-
-      <Text style={styles.sectionTitle}>
-        {user?.rol === "Administrador" && eventoForm.modoAsignacion === "departamento"
-          ? "Asignar por departamento *"
-          : "Asistentes *"}
-      </Text>
-
-      {user?.rol === "Jefe" && eventoForm.modoAsignacion === "usuarios" && (
+      {user?.rol === "Jefe" && (
         <View style={styles.warningBox}>
           <MaterialIcons name="info" size={16} color="#FF9800" />
           <Text style={styles.warningText}>
@@ -410,80 +403,12 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
         </View>
       )}
 
-      {user?.rol === "Administrador" && eventoForm.modoAsignacion === "departamento" ? (
-        <>
-          {eventoForm.departamentos.length === 0 && (
-            <Text style={styles.emptyUsersText}>
-              No hay departamentos disponibles
-            </Text>
-          )}
-
-          {eventoForm.departamentos.map((depto) => (
-            <TouchableOpacity
-              key={depto.id}
-              style={[
-                styles.usuarioCard,
-                eventoForm.departamentoSeleccionado === depto.nombre &&
-                  styles.usuarioCardSelected,
-              ]}
-              onPress={() => eventoForm.setDepartamentoSeleccionado(depto.nombre)}
-            >
-              <View style={styles.usuarioInfo}>
-                <Text style={styles.usuarioNombre}>{depto.nombre}</Text>
-                <Text style={styles.usuarioRol}>
-                  Se asignará a todos los usuarios del departamento
-                </Text>
-              </View>
-
-              {eventoForm.departamentoSeleccionado === depto.nombre && (
-                <MaterialIcons
-                  name="check-circle"
-                  size={24}
-                  color={COLORS.primary}
-                />
-              )}
-            </TouchableOpacity>
-          ))}
-        </>
-      ) : (
-        <>
-          {eventoForm.usuariosDisponibles.length === 0 && (
-            <Text style={styles.emptyUsersText}>No hay usuarios disponibles</Text>
-          )}
-
-          {eventoForm.usuariosDisponibles.map((usuario) => (
-            <TouchableOpacity
-              key={usuario.uid}
-              style={[
-                styles.usuarioCard,
-                eventoForm.asistentesSeleccionados.includes(usuario.uid) &&
-                  styles.usuarioCardSelected,
-              ]}
-              onPress={() => eventoForm.toggleAsistente(usuario.uid)}
-            >
-              <View style={styles.usuarioInfo}>
-                <Text style={styles.usuarioNombre}>{usuario.nombre}</Text>
-                <Text style={styles.usuarioRol}>{usuario.rol}</Text>
-              </View>
-
-              {eventoForm.asistentesSeleccionados.includes(usuario.uid) && (
-                <MaterialIcons
-                  name="check-circle"
-                  size={24}
-                  color={COLORS.primary}
-                />
-              )}
-            </TouchableOpacity>
-          ))}
-        </>
-      )}
-
       <Text style={styles.label}>Capacidad máxima</Text>
       <TextInput
         style={styles.input}
         placeholder="Ej: 30"
-        value={eventoForm.capacidadMaxima}
-        onChangeText={eventoForm.setCapacidadMaxima}
+        value={capacidadMaxima}
+        onChangeText={setCapacidadMaxima}
         keyboardType="numeric"
       />
 
@@ -491,20 +416,20 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
       <TextInput
         style={[styles.input, styles.textArea]}
         placeholder="Información extra..."
-        value={eventoForm.notas}
-        onChangeText={eventoForm.setNotas}
+        value={notas}
+        onChangeText={setNotas}
         multiline
         numberOfLines={3}
       />
 
       <TouchableOpacity
-        style={[styles.crearButton, { opacity: eventoForm.isLoading ? 0.6 : 1 }]}
-        onPress={eventoForm.crearEventoHandler}
-        disabled={eventoForm.isLoading}
+        style={[styles.crearButton, { opacity: isLoading ? 0.6 : 1 }]}
+        onPress={handleEditarEvento}
+        disabled={isLoading}
       >
-        <MaterialIcons name="event" size={22} color="#fff" />
+        <MaterialIcons name="save" size={22} color="#fff" />
         <Text style={styles.crearButtonText}>
-          {eventoForm.isLoading ? "Creando..." : "Crear Evento"}
+          {isLoading ? "Guardando..." : "Guardar cambios"}
         </Text>
       </TouchableOpacity>
     </ScrollView>
@@ -512,6 +437,12 @@ const CrearEventoScreen: React.FC = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.background,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -748,4 +679,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CrearEventoScreen;
+export default EditarEventoScreen;

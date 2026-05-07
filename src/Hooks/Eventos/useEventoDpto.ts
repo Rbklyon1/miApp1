@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Alert } from "react-native";
-import { eventosDeptoService } from "../Services/eventoDptoService";
-import { Evento, EstadoAsistencia } from "../types/eventos";
-import { Departamento } from "../Services/departamentosService";
+import { eventosDeptoService } from "../../Services/eventoDptoService";
+import { Evento, EstadoAsistencia } from "../../types/eventos";
+import { Departamento } from "../../Services/departamentosService";
 
 export function useEventosDepto(user: any) {
   const [eventos, setEventos] = useState<Evento[]>([]);

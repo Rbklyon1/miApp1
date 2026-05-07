@@ -341,3 +341,12 @@ export async function obtenerEventosAsignadosDepartamento(
     throw error;
   }
 }
+
+export async function obtenerEventoPorId(eventoId: string): Promise<Evento | null> {
+  const eventoRef = doc(db, "Eventos", eventoId);
+  const eventoSnap = await getDoc(eventoRef);
+
+  if (!eventoSnap.exists()) return null;
+
+  return { id: eventoSnap.id, ...eventoSnap.data() } as Evento;
+}

@@ -12,7 +12,7 @@ export type VistaFiltro = "todas" | "asignadas" | "creadas";
 type UserLike = {
   uid: string;
   rol?: string;
-  empresaSeleccionada?: string | null;
+  empresaId?: string | null;
 };
 
 export function useTareas(user: UserLike | null | undefined) {
@@ -23,7 +23,7 @@ export function useTareas(user: UserLike | null | undefined) {
   const esAdmin = user?.rol === "Administrador";
   const puedeCrear = esAdmin || user?.rol === "Jefe";
 
-  const empresaId = user?.empresaSeleccionada ?? null;
+  const empresaId = user?.empresaId ?? null;
   const uid = user?.uid ?? null;
 
   const refetch = useCallback(async () => {

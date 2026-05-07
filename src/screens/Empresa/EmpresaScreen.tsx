@@ -1,6 +1,5 @@
 import { useNavigation } from "@react-navigation/native";
-import { doc, getDoc } from "firebase/firestore";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
   Alert,
   FlatList,
@@ -9,77 +8,71 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
 import { useUser } from "../../context/UserContext";
-import { obtenerEmpresasPorUsuario } from "../../Services/empresaService";
-import { db } from "../../Services/firebaseConfig";
+import { useEmpresas } from "../../Hooks/useEmpresa";
+import { validarAccesoAEmpresa } from "../../Services/empresaService";
 import { COLORS, FONT_SIZES } from "../../types/index";
+
+interface Empresa {
+  id: string;
+  nombre: string;
+  codigoAcceso: string;
+}
 
 const EmpresaScreen: React.FC = () => {
   const { user, updateUser } = useUser();
-  const [empresas, setEmpresas] = useState<any[]>([]);
   const navigation = useNavigation();
 
-  interface Empresa {
-    id: string;
-    nombre: string;
-    codigoAcceso: string;
-  }
+  const { empresas, loading, refetch } = useEmpresas(user?.uid);
 
-  useEffect(() => {
-    if (user) {
-      obtenerEmpresasPorUsuario(user.uid)
-        .then(setEmpresas)
-        .catch(() =>
-          Alert.alert("Error", "No se pudieron cargar las empresas")
-        );
-    }
-  }, [user]);
-
-  const handleSeleccionar = async (empresa: any) => {
-    if (!empresa?.id) {
+  const handleSeleccionarEmpresa = async (empresa: Empresa) => {
+    if (!empresa?.id || !user?.uid) {
       Alert.alert("Error", "No se pudo seleccionar la empresa.");
       return;
     }
 
-    const uid = user?.uid;
-    if (!uid) return;
-
     try {
-      const userRef = doc(db, "Usuarios", uid);
-      const snap = await getDoc(userRef);
+      const tieneAcceso = await validarAccesoAEmpresa(user.uid, empresa.id);
 
-      if (snap.exists()) {
-        const data = snap.data();
-
-        if (data.empresaId === empresa.id && data.activo === false) {
-          Alert.alert(
-            "Acceso restringido",
-            "Has sido deshabilitado de esta empresa."
-          );
-          return;
-        }
+      if (!tieneAcceso) {
+        Alert.alert(
+          "Acceso restringido",
+          "Has sido deshabilitado de esta empresa.",
+        );
+        return;
       }
 
-      updateUser({
-        empresaSeleccionada: empresa.id,
-        empresaNombre: empresa.nombre,
-      });
+     updateUser({
+      empresaId: empresa.id,
+      empresaNombre: empresa.nombre,
+    });
 
       Alert.alert(
         "Empresa seleccionada",
         `Ahora estás en ${empresa.nombre}`,
-        [{ text: "OK", onPress: () => navigation.navigate("Home" as never) }],
-        { cancelable: false }
+        [
+          {
+            text: "OK",
+            onPress: () => navigation.navigate("Home" as never),
+          },
+        ],
+        { cancelable: false },
       );
-    } catch (error) {
-      console.error("❌ Error al validar empresa:", error);
+    } catch {
       Alert.alert("Error", "No se pudo validar el acceso a esta empresa.");
     }
   };
 
-  useEffect(() => {
-    console.log(" USER CONTEXT ACTUAL:", user);
-  }, [user]);
+  const renderEmpresa = ({ item }: { item: Empresa }) => (
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => handleSeleccionarEmpresa(item)}
+    >
+      <Text style={styles.cardTitle}>{item.nombre}</Text>
+      <Text style={styles.cardCode}>Código: {item.codigoAcceso}</Text>
+    </TouchableOpacity>
+  );
 
   return (
     <View style={styles.container}>
@@ -88,18 +81,15 @@ const EmpresaScreen: React.FC = () => {
       <FlatList
         data={empresas}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }: { item: Empresa }) => (
-          <TouchableOpacity
-            style={styles.card}
-            onPress={() => handleSeleccionar(item)}
-          >
-            <Text style={styles.cardTitle}>{item.nombre}</Text>
-            <Text style={styles.cardCode}>Código: {item.codigoAcceso}</Text>
-          </TouchableOpacity>
-        )}
+        renderItem={renderEmpresa}
+        refreshing={loading}
+        onRefresh={refetch}
+        contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <Text style={styles.emptyText}>
-            No tienes empresas registradas aún.
+            {loading
+              ? "Cargando empresas..."
+              : "No tienes empresas registradas aún."}
           </Text>
         }
       />
@@ -108,13 +98,20 @@ const EmpresaScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background, padding: 20 },
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    padding: 20,
+  },
   title: {
     fontSize: FONT_SIZES.large,
     fontWeight: "bold",
     textAlign: "center",
     marginBottom: 20,
     color: COLORS.text,
+  },
+  listContent: {
+    paddingBottom: 20,
   },
   card: {
     backgroundColor: COLORS.surface,
@@ -131,6 +128,7 @@ const styles = StyleSheet.create({
   cardCode: {
     fontSize: FONT_SIZES.small,
     color: COLORS.textSecondary,
+    marginTop: 4,
   },
   emptyText: {
     textAlign: "center",

@@ -45,7 +45,6 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
             ...prev,
             empresaId: undefined,
             empresaNombre: undefined,
-            empresaSeleccionada: undefined,
           }
         : prev
     );

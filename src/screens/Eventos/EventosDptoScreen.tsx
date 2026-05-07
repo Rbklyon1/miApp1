@@ -13,11 +13,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import { useUser } from "../../context/UserContext";
 import { COLORS, FONT_SIZES } from "../../types";
 import { Evento, EstadoAsistencia } from "../../types/eventos";
-
-// Hook (ViewModel ligero)
-import { useEventosDepto } from "../../Hooks/useEventoDpto";
-
-// Si tu tipo Departamento no lo exportas en types, puedes importarlo de donde lo tengas:
+import { useEventosDepto } from "../../Hooks/Eventos/useEventoDpto";
 import { Departamento } from "../../Services/departamentosService";
 
 const EventosDeptoScreen: React.FC = ({ navigation }: any) => {

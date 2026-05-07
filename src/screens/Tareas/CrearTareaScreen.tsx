@@ -50,8 +50,8 @@ const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<string>
 
   //cargar departamentos de la empesa
   useEffect(() => {
-  if (user?.rol === "Administrador" && user?.empresaSeleccionada) {
-    cargarDepartamentos(user.empresaSeleccionada)
+  if (user?.rol === "Administrador" && user?.empresaId) {
+    cargarDepartamentos(user.empresaId)
       .then((deptos) => {
         setDepartamentos(deptos);
       })
@@ -59,12 +59,12 @@ const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<string>
         Alert.alert("Error", "No se pudieron cargar los departamentos");
       });
   }
-}, [user?.rol, user?.empresaSeleccionada]);
+}, [user?.rol, user?.empresaId]);
 
   // Cargar usuarios de la empresa
   useEffect(() => {
-    if (user?.empresaSeleccionada) {
-      obtenerUsuariosDeEmpresa(user.empresaSeleccionada)
+    if (user?.empresaId) {
+      obtenerUsuariosDeEmpresa(user.empresaId)
         .then((usuarios) => {
           // Si es Jefe, filtrar Administradores
           if (user.rol === "Jefe") {
@@ -80,7 +80,7 @@ const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<string>
           Alert.alert("Error", "No se pudieron cargar los usuarios")
         );
     }
-  }, [user?.empresaSeleccionada, user?.rol]);
+  }, [user?.empresaId, user?.rol]);
 
   const prioridades: PrioridadTarea[] = ["Baja", "Media", "Alta", "Urgente"];
 
@@ -142,7 +142,7 @@ const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<string>
     }
 
     const usuariosDepto = await obtenerUsuariosPorDepartamento(
-      user?.empresaSeleccionada!,
+      user?.empresaId!,
       departamentoSeleccionado
     );
 
@@ -182,7 +182,7 @@ const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<string>
       },
       user?.uid!,
       user?.nombre!,
-      user?.empresaSeleccionada!,
+      user?.empresaId!,
       user?.empresaNombre!,
       nombresAsignados,
       user?.rol

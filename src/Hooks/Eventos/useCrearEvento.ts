@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { Alert } from "react-native";
-import { cargarDepartamentos } from "../Services/departamentosService";
+import { cargarDepartamentos } from "../../Services/departamentosService";
 import {
   obtenerUsuariosDeEmpresa,
   obtenerUsuariosPorDepartamento,
-} from "../Services/empresaService";
-import { crearEvento } from "../Services/eventosService";
-import { TipoEvento } from "../types/eventos";
+} from "../../Services/empresaService";
+import { crearEvento } from "../../Services/eventosService";
+import { TipoEvento } from "../../types/eventos";
 
 export function useCrearEvento(user: any, navigation: any) {
   const [titulo, setTitulo] = useState("");
@@ -61,7 +61,7 @@ export function useCrearEvento(user: any, navigation: any) {
   ];
 
   useEffect(() => {
-    if (user?.empresaSeleccionada) {
+    if (user?.empresaId) {
       obtenerUsuariosDeEmpresa(user.empresaSeleccionada)
         .then((usuarios) => {
           if (user.rol === "Jefe") {
@@ -74,15 +74,15 @@ export function useCrearEvento(user: any, navigation: any) {
         })
         .catch(() => Alert.alert("Error", "No se pudieron cargar los usuarios"));
     }
-  }, [user?.empresaSeleccionada, user?.rol]);
+  }, [user?.empresaId, user?.rol]);
 
   useEffect(() => {
-    if (user?.rol === "Administrador" && user?.empresaSeleccionada) {
+    if (user?.rol === "Administrador" && user?.empresaId) {
       cargarDepartamentos(user.empresaSeleccionada)
         .then(setDepartamentos)
         .catch(() => Alert.alert("Error", "No se pudieron cargar los departamentos"));
     }
-  }, [user?.rol, user?.empresaSeleccionada]);
+  }, [user?.rol, user?.empresaId]);
 
   const obtenerDiasDelMes = (mes: number, anio: number) => {
     return new Date(anio, mes + 1, 0).getDate();
@@ -139,7 +139,7 @@ export function useCrearEvento(user: any, navigation: any) {
         }
 
         const usuariosDepto = await obtenerUsuariosPorDepartamento(
-          user?.empresaSeleccionada || user?.empresaId || "",
+          user?.empresaId || user?.empresaId || "",
           departamentoSeleccionado
         );
 
@@ -194,7 +194,7 @@ export function useCrearEvento(user: any, navigation: any) {
         } as any,
         user?.uid!,
         user?.nombre!,
-        user?.empresaSeleccionada || user?.empresaId!,
+        user?.empresaId,
         user?.empresaNombre!,
         asistentesData,
         user?.rol

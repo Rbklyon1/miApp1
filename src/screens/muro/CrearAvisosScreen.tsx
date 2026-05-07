@@ -66,7 +66,7 @@ const CrearAvisoScreen: React.FC = ({ navigation }: any) => {
         user?.uid!,
         user?.nombre!,
         user?.rol!,
-        user?.empresaSeleccionada!,
+        user?.empresaId!,
         user?.empresaNombre!
       );
 

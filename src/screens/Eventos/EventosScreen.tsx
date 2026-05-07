@@ -1,6 +1,5 @@
-
 import { MaterialIcons } from "@expo/vector-icons";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   Alert,
   Animated,
@@ -8,7 +7,6 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
-  RefreshControl,
   ScrollView,
   StyleSheet,
   Switch,
@@ -18,24 +16,20 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
+
 import { useUser } from "../../context/UserContext";
+import { useAgendaPersonal } from "../../Hooks/Eventos/useAgendaPersonal";
+import { useEventosCorporativos } from "../../Hooks/Eventos/useEventosCorporativos";
 import {
-  crearEventoPersonal,
-  editarEventoPersonal,
-  eliminarEventoPersonal,
-  obtenerEventosPersonales,
-  toggleCompletadoEventoPersonal,
-} from "../../Services/agendaPersonal";
-import {
-  obtenerEventosAsignados,
-  obtenerEventosCreadosPor,
-  obtenerEventosDeEmpresa,
-} from "../../Services/eventosService";
-import { ColorAgenda, EventoPersonal, TipoAgenda } from "../../types/Agendapersonal";
+  ColorAgenda,
+  EventoPersonal,
+  TipoAgenda,
+} from "../../types/Agendapersonal";
 import { Evento } from "../../types/eventos";
 import { COLORS, FONT_SIZES } from "../../types/index";
 
-
+type PestanaActiva = "corporativos" | "agenda";
+type FiltroAgenda = "proximos" | "todos" | "completados";
 
 const TIPOS_AGENDA: TipoAgenda[] = [
   "Personal",
@@ -57,17 +51,22 @@ const COLORES_AGENDA: { valor: ColorAgenda; label: string }[] = [
 ];
 
 const MESES = [
-  "Ene", "Feb", "Mar", "Abr", "May", "Jun",
-  "Jul", "Ago", "Sep", "Oct", "Nov", "Dic",
+  "Ene",
+  "Feb",
+  "Mar",
+  "Abr",
+  "May",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dic",
 ];
 
 const diasDelMes = (mes: number, anio: number) =>
   new Date(anio, mes + 1, 0).getDate();
-
-
-type VistaFiltro = "todos" | "asignados" | "creados";
-type PestanaActiva = "corporativos" | "agenda";
-type FiltroAgenda = "proximos" | "todos" | "completados";
 
 const formVacio = () => ({
   titulo: "",
@@ -83,109 +82,78 @@ const formVacio = () => ({
   notas: "",
 });
 
-// ─── Componente principal ─────────────────────────────────────────────────────
-
 const EventosScreen: React.FC = ({ navigation }: any) => {
   const { user } = useUser();
-  const esAdminOJefe = user?.rol === "Administrador" || user?.rol === "Jefe";
 
-  // ── Pestaña activa ──
   const [pestana, setPestana] = useState<PestanaActiva>("corporativos");
-
-  // ── Eventos corporativos ──
-  const [eventos, setEventos] = useState<Evento[]>([]);
-  const [loadingCorp, setLoadingCorp] = useState(false);
-  const [vistaActual, setVistaActual] = useState<VistaFiltro>("asignados");
-
-  // ── Agenda personal ──
-  const [eventosPersonales, setEventosPersonales] = useState<EventoPersonal[]>([]);
-  const [loadingAgenda, setLoadingAgenda] = useState(false);
   const [filtroAgenda, setFiltroAgenda] = useState<FiltroAgenda>("proximos");
 
-  // ── Modal agenda ──
+  const eventosCorp = useEventosCorporativos(user);
+  const agenda = useAgendaPersonal(user?.uid);
+
+  const puedeCrearEventoCorporativo =
+    user?.rol === "Administrador" || user?.rol === "Jefe";
+
+  // Modal agenda
   const [modalAgendaVisible, setModalAgendaVisible] = useState(false);
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [form, setForm] = useState(formVacio());
 
-  // Selectors de fecha dentro del modal
+  // Selectores de fecha
   const [modalFechaInicio, setModalFechaInicio] = useState(false);
   const [modalFechaFin, setModalFechaFin] = useState(false);
+
   const [diaI, setDiaI] = useState(new Date().getDate());
   const [mesI, setMesI] = useState(new Date().getMonth());
   const [anioI, setAnioI] = useState(new Date().getFullYear());
+
   const [diaF, setDiaF] = useState(new Date().getDate());
   const [mesF, setMesF] = useState(new Date().getMonth());
   const [anioF, setAnioF] = useState(new Date().getFullYear());
 
   const slideAnim = useRef(new Animated.Value(600)).current;
 
-  
-  useEffect(() => {
-    if (user?.empresaSeleccionada) cargarEventosCorp();
-  }, [user?.empresaSeleccionada, vistaActual]);
+  const eventosAgendaFiltrados = useMemo(() => {
+    const ahora = new Date();
 
-  useEffect(() => {
-    if (user?.uid) cargarAgenda();
-  }, [user?.uid, filtroAgenda]);
-
-  const cargarEventosCorp = useCallback(async () => {
-    if (!user?.empresaSeleccionada) return;
-    setLoadingCorp(true);
-    try {
-      let data: Evento[] = [];
-      switch (vistaActual) {
-        case "todos":
-          data = await obtenerEventosDeEmpresa(user.empresaSeleccionada);
-          break;
-        case "asignados":
-          data = await obtenerEventosAsignados(user.uid, user.empresaSeleccionada);
-          break;
-        case "creados":
-          data = await obtenerEventosCreadosPor(user.uid, user.empresaSeleccionada);
-          break;
-      }
-      setEventos(data);
-    } catch {
-      Alert.alert("Error", "No se pudieron cargar los eventos");
-    } finally {
-      setLoadingCorp(false);
+    switch (filtroAgenda) {
+      case "proximos":
+        return agenda.eventos.filter(
+          (e: EventoPersonal) =>
+            new Date(e.fechaInicio) >= ahora && !e.completado
+        );
+      case "completados":
+        return agenda.eventos.filter((e: EventoPersonal) => e.completado);
+      default:
+        return agenda.eventos;
     }
-  }, [user?.empresaSeleccionada, user?.uid, vistaActual]);
+  }, [agenda.eventos, filtroAgenda]);
 
-  const cargarAgenda = useCallback(async () => {
-    if (!user?.uid) return;
-    setLoadingAgenda(true);
-    try {
-      const todos = await obtenerEventosPersonales(user.uid);
-      const ahora = new Date();
-      let filtrados: EventoPersonal[];
-      switch (filtroAgenda) {
-        case "proximos":
-          filtrados = todos.filter(
-            (e) => new Date(e.fechaInicio) >= ahora && !e.completado
-          );
-          break;
-        case "completados":
-          filtrados = todos.filter((e) => e.completado);
-          break;
-        default:
-          filtrados = todos;
-      }
-      setEventosPersonales(filtrados);
-    } catch {
-      Alert.alert("Error", "No se pudo cargar tu agenda");
-    } finally {
-      setLoadingAgenda(false);
+  const setFormField = <K extends keyof ReturnType<typeof formVacio>>(
+    campo: K,
+    valor: ReturnType<typeof formVacio>[K]
+  ) => setForm((prev) => ({ ...prev, [campo]: valor }));
+
+  const sincronizarSelectorFecha = (fecha: Date, tipo: "inicio" | "fin") => {
+    if (tipo === "inicio") {
+      setDiaI(fecha.getDate());
+      setMesI(fecha.getMonth());
+      setAnioI(fecha.getFullYear());
+    } else {
+      setDiaF(fecha.getDate());
+      setMesF(fecha.getMonth());
+      setAnioF(fecha.getFullYear());
     }
-  }, [user?.uid, filtroAgenda]);
+  };
 
-  
   const abrirModalNuevo = () => {
     setEditandoId(null);
-    setForm(formVacio());
-    sincronizarSelectorFecha(new Date(), "inicio");
+    const nuevoForm = formVacio();
+    setForm(nuevoForm);
+    sincronizarSelectorFecha(nuevoForm.fechaInicio, "inicio");
     setModalAgendaVisible(true);
+
     Animated.spring(slideAnim, {
       toValue: 0,
       useNativeDriver: true,
@@ -194,26 +162,30 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
     }).start();
   };
 
-  const abrirModalEdicion = (ev: EventoPersonal) => {
-    setEditandoId(ev.id);
-    const fi = new Date(ev.fechaInicio);
-    const ff = ev.fechaFin ? new Date(ev.fechaFin) : undefined;
+  const abrirModalEdicion = (evento: EventoPersonal) => {
+    const fechaInicio = new Date(evento.fechaInicio);
+    const fechaFin = evento.fechaFin ? new Date(evento.fechaFin) : undefined;
+
+    setEditandoId(evento.id);
     setForm({
-      titulo: ev.titulo,
-      descripcion: ev.descripcion || "",
-      tipo: ev.tipo,
-      color: ev.color,
-      fechaInicio: fi,
-      horaInicio: ev.horaInicio,
-      conFechaFin: !!ff,
-      fechaFin: ff,
-      horaFin: ev.horaFin || "",
-      ubicacion: ev.ubicacion || "",
-      notas: ev.notas || "",
+      titulo: evento.titulo,
+      descripcion: evento.descripcion || "",
+      tipo: evento.tipo,
+      color: evento.color,
+      fechaInicio,
+      horaInicio: evento.horaInicio,
+      conFechaFin: !!fechaFin,
+      fechaFin,
+      horaFin: evento.horaFin || "",
+      ubicacion: evento.ubicacion || "",
+      notas: evento.notas || "",
     });
-    sincronizarSelectorFecha(fi, "inicio");
-    if (ff) sincronizarSelectorFecha(ff, "fin");
+
+    sincronizarSelectorFecha(fechaInicio, "inicio");
+    if (fechaFin) sincronizarSelectorFecha(fechaFin, "fin");
+
     setModalAgendaVisible(true);
+
     Animated.spring(slideAnim, {
       toValue: 0,
       useNativeDriver: true,
@@ -234,44 +206,27 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
     });
   };
 
-  const sincronizarSelectorFecha = (fecha: Date, cual: "inicio" | "fin") => {
-    if (cual === "inicio") {
-      setDiaI(fecha.getDate());
-      setMesI(fecha.getMonth());
-      setAnioI(fecha.getFullYear());
-    } else {
-      setDiaF(fecha.getDate());
-      setMesF(fecha.getMonth());
-      setAnioF(fecha.getFullYear());
-    }
-  };
-
   const confirmarFechaInicio = () => {
-    const nueva = new Date(anioI, mesI, diaI);
-    setForm((f) => ({ ...f, fechaInicio: nueva }));
+    const nuevaFecha = new Date(anioI, mesI, diaI);
+    setFormField("fechaInicio", nuevaFecha);
     setModalFechaInicio(false);
   };
 
   const confirmarFechaFin = () => {
-    const nueva = new Date(anioF, mesF, diaF);
-    setForm((f) => ({ ...f, fechaFin: nueva }));
+    const nuevaFecha = new Date(anioF, mesF, diaF);
+    setFormField("fechaFin", nuevaFecha);
     setModalFechaFin(false);
   };
 
-  const setFormField = <K extends keyof ReturnType<typeof formVacio>>(
-    campo: K,
-    valor: ReturnType<typeof formVacio>[K]
-  ) => setForm((f) => ({ ...f, [campo]: valor }));
-
-  
   const handleGuardarAgenda = async () => {
     if (!form.titulo.trim()) {
       Alert.alert("Error", "El título es obligatorio");
       return;
     }
-    if (!user?.uid) return;
-    setGuardando(true);
+
     try {
+      setGuardando(true);
+
       const datos = {
         titulo: form.titulo.trim(),
         descripcion: form.descripcion.trim() || undefined,
@@ -280,239 +235,113 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
         fechaInicio: form.fechaInicio,
         horaInicio: form.horaInicio,
         fechaFin: form.conFechaFin ? form.fechaFin : undefined,
-        horaFin: form.conFechaFin && form.horaFin.trim() ? form.horaFin.trim() : undefined,
+        horaFin:
+          form.conFechaFin && form.horaFin.trim()
+            ? form.horaFin.trim()
+            : undefined,
         ubicacion: form.ubicacion.trim() || undefined,
         notas: form.notas.trim() || undefined,
       };
 
       if (editandoId) {
-        await editarEventoPersonal(editandoId, user.uid, datos);
+        await agenda.editar(editandoId, datos);
       } else {
-        await crearEventoPersonal(datos, user.uid);
+        await agenda.crear(datos);
       }
 
       cerrarModal();
-      cargarAgenda();
     } catch {
-      Alert.alert("Error", "No se pudo guardar el evento");
+      Alert.alert("Error", "No se pudo guardar el evento personal");
     } finally {
       setGuardando(false);
     }
   };
 
-  const handleToggleCompletado = async (ev: EventoPersonal) => {
-    if (!user?.uid) return;
-    try {
-      await toggleCompletadoEventoPersonal(ev.id, user.uid, !ev.completado);
-      setEventosPersonales((prev) =>
-        prev
-          .map((e) => (e.id === ev.id ? { ...e, completado: !e.completado } : e))
-          .filter((e) => {
-            if (filtroAgenda === "proximos")
-              return new Date(e.fechaInicio) >= new Date() && !e.completado;
-            if (filtroAgenda === "completados") return e.completado;
-            return true;
-          })
-      );
-    } catch {
-      Alert.alert("Error", "No se pudo actualizar el estado");
-    }
-  };
-
-  const handleEliminarPersonal = (ev: EventoPersonal) => {
-    Alert.alert("Eliminar", `¿Eliminar "${ev.titulo}" de tu agenda?`, [
+  const confirmarEliminarPersonal = (evento: EventoPersonal) => {
+    Alert.alert("Eliminar", `¿Eliminar "${evento.titulo}" de tu agenda?`, [
       { text: "Cancelar", style: "cancel" },
       {
         text: "Eliminar",
         style: "destructive",
-        onPress: async () => {
-          try {
-            await eliminarEventoPersonal(ev.id, user!.uid);
-            setEventosPersonales((prev) => prev.filter((e) => e.id !== ev.id));
-          } catch {
-            Alert.alert("Error", "No se pudo eliminar");
-          }
-        },
+        onPress: () => agenda.eliminar(evento.id),
       },
     ]);
   };
 
-  
-  const formatearFechaCorp = (fecha: string) =>
-    new Date(fecha).toLocaleDateString("es-ES", {
+  const formatearFecha = (fechaISO: string) =>
+    new Date(fechaISO).toLocaleDateString("es-MX", {
       day: "numeric",
       month: "short",
       year: "numeric",
     });
 
-  const formatearFechaPersonal = (fechaISO: string) => {
-    const fecha = new Date(fechaISO);
-    const hoy = new Date();
-    const maniana = new Date();
-    maniana.setDate(hoy.getDate() + 1);
-    if (fecha.toDateString() === hoy.toDateString()) return "Hoy";
-    if (fecha.toDateString() === maniana.toDateString()) return "Mañana";
-    return fecha.toLocaleDateString("es-ES", {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-    });
-  };
+  const renderEventoCorp = ({ item }: { item: Evento }) => (
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => navigation.navigate("DetalleEvento", { eventoId: item.id })}
+    >
+      <Text style={styles.cardTitle}>{item.titulo}</Text>
+      <Text style={styles.cardText}>
+        {formatearFecha(item.fechaInicio)} • {item.horaInicio}
+      </Text>
+      <Text style={styles.cardText}>
+        {item.esVirtual ? "Virtual" : item.ubicacion || "Sin ubicación"}
+      </Text>
+    </TouchableOpacity>
+  );
 
-  const esEventoPasado = (fecha: string) => new Date(fecha) < new Date();
-
-  const getTipoColor = (tipo: string) => {
-    switch (tipo) {
-      case "Reunión": return "#2196F3";
-      case "Capacitación": return "#9C27B0";
-      case "Evaluación": return "#FF5722";
-      case "Social": return "#4CAF50";
-      default: return "#9E9E9E";
-    }
-  };
-
-  const getEstadoColor = (estado: string) => {
-    switch (estado) {
-      case "Confirmado": return "#4CAF50";
-      case "Rechazado": return "#F44336";
-      case "Pendiente": return "#FF9800";
-      case "Asistió": return "#2196F3";
-      default: return "#9E9E9E";
-    }
-  };
-
- 
-  const renderEventoCorp = ({ item }: { item: Evento }) => {
-    const isPasado = esEventoPasado(item.fechaInicio);
-    const miEstado = item.asistentes.find((a) => a.uid === user?.uid)?.estadoAsistencia;
-
-    return (
-      <TouchableOpacity
-        style={[styles.eventoCard, isPasado && styles.eventoCardPasado]}
-        onPress={() => navigation.navigate("DetalleEvento", { eventoId: item.id })}
-      >
-        <View style={styles.eventoHeader}>
-          <View style={styles.eventoHeaderLeft}>
-            <Text style={styles.eventoTitulo} numberOfLines={1}>
-              {item.titulo}
-            </Text>
-            <View style={[styles.tipoBadge, { backgroundColor: getTipoColor(item.tipo) }]}>
-              <Text style={styles.tipoText}>{item.tipo}</Text>
-            </View>
-          </View>
-        </View>
-
-        {item.descripcion && (
-          <Text style={styles.eventoDescripcion} numberOfLines={2}>
-            {item.descripcion}
-          </Text>
-        )}
-
-        <View style={styles.eventoFooter}>
-          <View style={styles.infoRow}>
-            <MaterialIcons name="event" size={16} color={COLORS.textSecondary} />
-            <Text style={styles.infoText}>
-              {formatearFechaCorp(item.fechaInicio)} • {item.horaInicio}
-            </Text>
-          </View>
-          <View style={styles.infoRow}>
-            <MaterialIcons
-              name={item.esVirtual ? "videocam" : "place"}
-              size={16}
-              color={COLORS.textSecondary}
-            />
-            <Text style={styles.infoText} numberOfLines={1}>
-              {item.esVirtual ? "Virtual" : item.ubicacion || "Sin ubicación"}
-            </Text>
-          </View>
-          <View style={styles.infoRow}>
-            <MaterialIcons name="people" size={16} color={COLORS.textSecondary} />
-            <Text style={styles.infoText}>
-              {item.asistentes.length} asistente{item.asistentes.length !== 1 ? "s" : ""}
-            </Text>
-          </View>
-          {miEstado && (
-            <View style={styles.estadoBadgeContainer}>
-              <View style={[styles.estadoBadge, { backgroundColor: getEstadoColor(miEstado) }]}>
-                <Text style={styles.estadoText}>{miEstado}</Text>
-              </View>
-            </View>
-          )}
-        </View>
-
-        {isPasado && (
-          <View style={styles.pasadoOverlay}>
-            <Text style={styles.pasadoText}>PASADO</Text>
-          </View>
-        )}
-      </TouchableOpacity>
-    );
-  };
-
-  const renderEventoPersonal = ({ item }: { item: EventoPersonal }) => {
-    const pasado = esEventoPasado(item.fechaInicio);
-
-    return (
-      <View
+  const renderEventoPersonal = ({ item }: { item: EventoPersonal }) => (
+    <TouchableOpacity
+      style={[styles.card, { borderLeftColor: item.color, borderLeftWidth: 5 }]}
+      onPress={() => abrirModalEdicion(item)}
+    >
+      <Text
         style={[
-          styles.cardPersonal,
-          item.completado && styles.cardPersonalCompletado,
-          { borderLeftColor: item.color },
+          styles.cardTitle,
+          item.completado && styles.textoCompletado,
         ]}
       >
+        {item.titulo}
+      </Text>
+
+      <Text
+        style={[
+          styles.cardText,
+          item.completado && styles.textoCompletado,
+        ]}
+      >
+        {formatearFecha(item.fechaInicio)} • {item.horaInicio}
+      </Text>
+
+      {!!item.descripcion && (
+        <Text
+          style={[
+            styles.cardText,
+            item.completado && styles.textoCompletado,
+          ]}
+          numberOfLines={2}
+        >
+          {item.descripcion}
+        </Text>
+      )}
+
+      <View style={styles.cardActions}>
         <TouchableOpacity
-          style={styles.checkBtn}
-          onPress={() => handleToggleCompletado(item)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => agenda.toggle(item.id, !item.completado)}
         >
           <MaterialIcons
             name={item.completado ? "check-circle" : "radio-button-unchecked"}
             size={24}
-            color={item.completado ? "#4CAF50" : "#ccc"}
+            color={item.completado ? COLORS.success : COLORS.textSecondary}
           />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.cardPersonalBody} onPress={() => abrirModalEdicion(item)}>
-          <Text
-            style={[styles.cardPersonalTitulo, item.completado && styles.tachado]}
-            numberOfLines={1}
-          >
-            {item.titulo}
-          </Text>
-          <View style={styles.cardPersonalMeta}>
-            <View style={[styles.tipoBadgePersonal, { backgroundColor: item.color }]}>
-              <Text style={styles.tipoText}>{item.tipo}</Text>
-            </View>
-            <Text style={styles.infoText}>
-              {formatearFechaPersonal(item.fechaInicio)} • {item.horaInicio}
-            </Text>
-          </View>
-          {item.descripcion ? (
-            <Text
-              style={[styles.eventoDescripcion, item.completado && styles.tachado]}
-              numberOfLines={1}
-            >
-              {item.descripcion}
-            </Text>
-          ) : null}
+        <TouchableOpacity onPress={() => confirmarEliminarPersonal(item)}>
+          <MaterialIcons name="delete-outline" size={22} color={COLORS.error} />
         </TouchableOpacity>
-
-        <View style={styles.cardPersonalAcciones}>
-          {pasado && !item.completado && (
-            <View style={styles.vencidoBadge}>
-              <Text style={styles.vencidoText}>VENCIDO</Text>
-            </View>
-          )}
-          <TouchableOpacity
-            onPress={() => handleEliminarPersonal(item)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <MaterialIcons name="delete-outline" size={20} color="#ccc" />
-          </TouchableOpacity>
-        </View>
       </View>
-    );
-  };
+    </TouchableOpacity>
+  );
 
   const renderSelectorFecha = (
     titulo: string,
@@ -533,14 +362,22 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
               <Text style={styles.selectorTitulo}>{titulo}</Text>
 
               <Text style={styles.selectorLabel}>Año</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.selectorScroll}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 {[anio - 1, anio, anio + 1, anio + 2].map((a) => (
                   <TouchableOpacity
                     key={a}
-                    style={[styles.selectorItem, anio === a && styles.selectorItemActive]}
+                    style={[
+                      styles.selectorItem,
+                      anio === a && styles.selectorItemActive,
+                    ]}
                     onPress={() => setAnio(a)}
                   >
-                    <Text style={[styles.selectorItemText, anio === a && styles.selectorItemTextActive]}>
+                    <Text
+                      style={[
+                        styles.selectorItemText,
+                        anio === a && styles.selectorItemTextActive,
+                      ]}
+                    >
                       {a}
                     </Text>
                   </TouchableOpacity>
@@ -548,14 +385,22 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
               </ScrollView>
 
               <Text style={styles.selectorLabel}>Mes</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.selectorScroll}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 {MESES.map((m, i) => (
                   <TouchableOpacity
                     key={m}
-                    style={[styles.selectorItem, mes === i && styles.selectorItemActive]}
+                    style={[
+                      styles.selectorItem,
+                      mes === i && styles.selectorItemActive,
+                    ]}
                     onPress={() => setMes(i)}
                   >
-                    <Text style={[styles.selectorItemText, mes === i && styles.selectorItemTextActive]}>
+                    <Text
+                      style={[
+                        styles.selectorItemText,
+                        mes === i && styles.selectorItemTextActive,
+                      ]}
+                    >
                       {m}
                     </Text>
                   </TouchableOpacity>
@@ -563,25 +408,42 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
               </ScrollView>
 
               <Text style={styles.selectorLabel}>Día</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.selectorScroll}>
-                {Array.from({ length: diasDelMes(mes, anio) }, (_, i) => i + 1).map((d) => (
-                  <TouchableOpacity
-                    key={d}
-                    style={[styles.selectorItem, dia === d && styles.selectorItemActive]}
-                    onPress={() => setDia(d)}
-                  >
-                    <Text style={[styles.selectorItemText, dia === d && styles.selectorItemTextActive]}>
-                      {d}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {Array.from({ length: diasDelMes(mes, anio) }, (_, i) => i + 1).map(
+                  (d) => (
+                    <TouchableOpacity
+                      key={d}
+                      style={[
+                        styles.selectorItem,
+                        dia === d && styles.selectorItemActive,
+                      ]}
+                      onPress={() => setDia(d)}
+                    >
+                      <Text
+                        style={[
+                          styles.selectorItemText,
+                          dia === d && styles.selectorItemTextActive,
+                        ]}
+                      >
+                        {d}
+                      </Text>
+                    </TouchableOpacity>
+                  )
+                )}
               </ScrollView>
 
               <View style={styles.selectorBotones}>
-                <TouchableOpacity style={styles.selectorBtnSecundario} onPress={onCancelar}>
+                <TouchableOpacity
+                  style={styles.selectorBtnSecundario}
+                  onPress={onCancelar}
+                >
                   <Text style={styles.selectorBtnTextoOscuro}>Cancelar</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.selectorBtnPrimario} onPress={onConfirmar}>
+
+                <TouchableOpacity
+                  style={styles.selectorBtnPrimario}
+                  onPress={onConfirmar}
+                >
                   <Text style={styles.selectorBtnTextoClaro}>Confirmar</Text>
                 </TouchableOpacity>
               </View>
@@ -603,19 +465,15 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        {/* Fondo oscuro */}
         <TouchableWithoutFeedback onPress={cerrarModal}>
           <View style={styles.modalBackdrop} />
         </TouchableWithoutFeedback>
 
-        {/* Sheet animado */}
         <Animated.View
           style={[styles.modalSheet, { transform: [{ translateY: slideAnim }] }]}
         >
-          {/* Handle */}
           <View style={styles.modalHandle} />
 
-          {/* Cabecera */}
           <View style={styles.modalHeader}>
             <View style={styles.modalHeaderLeft}>
               <MaterialIcons name="lock" size={16} color="#607D8B" />
@@ -623,7 +481,8 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
                 {editandoId ? "Editar evento personal" : "Nuevo evento personal"}
               </Text>
             </View>
-            <TouchableOpacity onPress={cerrarModal} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+
+            <TouchableOpacity onPress={cerrarModal}>
               <MaterialIcons name="close" size={22} color={COLORS.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -633,36 +492,40 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {/* Título */}
             <Text style={styles.formLabel}>Título *</Text>
             <TextInput
               style={styles.formInput}
               placeholder="Ej: Cita médica, recordatorio..."
               value={form.titulo}
               onChangeText={(v) => setFormField("titulo", v)}
-              maxLength={80}
             />
 
-            {/* Tipo */}
             <Text style={styles.formLabel}>Tipo</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {TIPOS_AGENDA.map((t) => (
                 <TouchableOpacity
                   key={t}
                   style={[
                     styles.chip,
-                    form.tipo === t && { backgroundColor: form.color, borderColor: form.color },
+                    form.tipo === t && {
+                      backgroundColor: form.color,
+                      borderColor: form.color,
+                    },
                   ]}
                   onPress={() => setFormField("tipo", t)}
                 >
-                  <Text style={[styles.chipText, form.tipo === t && styles.chipTextActive]}>
+                  <Text
+                    style={[
+                      styles.chipText,
+                      form.tipo === t && styles.chipTextActive,
+                    ]}
+                  >
                     {t}
                   </Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
 
-            {/* Color */}
             <Text style={styles.formLabel}>Color</Text>
             <View style={styles.colorRow}>
               {COLORES_AGENDA.map((c) => (
@@ -682,7 +545,6 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
               ))}
             </View>
 
-            {/* Descripción */}
             <Text style={styles.formLabel}>Descripción</Text>
             <TextInput
               style={[styles.formInput, styles.formTextArea]}
@@ -690,10 +552,8 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
               value={form.descripcion}
               onChangeText={(v) => setFormField("descripcion", v)}
               multiline
-              numberOfLines={2}
             />
 
-            {/* Fecha y hora inicio */}
             <Text style={styles.formLabel}>Fecha y hora</Text>
             <View style={styles.formFila}>
               <TouchableOpacity
@@ -702,9 +562,10 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
               >
                 <MaterialIcons name="event" size={16} color={form.color} />
                 <Text style={styles.formDateBtnText}>
-                  {form.fechaInicio.toLocaleDateString("es-ES")}
+                  {form.fechaInicio.toLocaleDateString("es-MX")}
                 </Text>
               </TouchableOpacity>
+
               <TextInput
                 style={[styles.formInput, { flex: 0.8, marginBottom: 0 }]}
                 placeholder="09:00"
@@ -715,7 +576,6 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
               />
             </View>
 
-            {/* Toggle fecha fin */}
             <View style={styles.switchRow}>
               <Text style={styles.formLabel}>Agregar hora de fin</Text>
               <Switch
@@ -732,13 +592,18 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
                   style={[styles.formDateBtn, { flex: 1.4 }]}
                   onPress={() => setModalFechaFin(true)}
                 >
-                  <MaterialIcons name="event" size={16} color={COLORS.textSecondary} />
+                  <MaterialIcons
+                    name="event"
+                    size={16}
+                    color={COLORS.textSecondary}
+                  />
                   <Text style={styles.formDateBtnText}>
                     {form.fechaFin
-                      ? form.fechaFin.toLocaleDateString("es-ES")
+                      ? form.fechaFin.toLocaleDateString("es-MX")
                       : "Seleccionar fecha"}
                   </Text>
                 </TouchableOpacity>
+
                 <TextInput
                   style={[styles.formInput, { flex: 0.8, marginBottom: 0 }]}
                   placeholder="18:00"
@@ -750,8 +615,7 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
               </View>
             )}
 
-            {/* Ubicación */}
-            <Text style={[styles.formLabel, { marginTop: 10 }]}>Ubicación</Text>
+            <Text style={styles.formLabel}>Ubicación</Text>
             <TextInput
               style={styles.formInput}
               placeholder="Lugar opcional..."
@@ -759,7 +623,6 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
               onChangeText={(v) => setFormField("ubicacion", v)}
             />
 
-            {/* Notas */}
             <Text style={styles.formLabel}>Notas</Text>
             <TextInput
               style={[styles.formInput, styles.formTextArea]}
@@ -767,10 +630,8 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
               value={form.notas}
               onChangeText={(v) => setFormField("notas", v)}
               multiline
-              numberOfLines={2}
             />
 
-            {/* Guardar */}
             <TouchableOpacity
               style={[
                 styles.guardarBtn,
@@ -797,20 +658,28 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
         </Animated.View>
       </KeyboardAvoidingView>
 
-      {/* Selectores de fecha anidados */}
       {modalFechaInicio &&
         renderSelectorFecha(
           "Fecha de inicio",
-          diaI, mesI, anioI,
-          setDiaI, setMesI, setAnioI,
+          diaI,
+          mesI,
+          anioI,
+          setDiaI,
+          setMesI,
+          setAnioI,
           confirmarFechaInicio,
           () => setModalFechaInicio(false)
         )}
+
       {modalFechaFin &&
         renderSelectorFecha(
           "Fecha de fin",
-          diaF, mesF, anioF,
-          setDiaF, setMesF, setAnioF,
+          diaF,
+          mesF,
+          anioF,
+          setDiaF,
+          setMesF,
+          setAnioF,
           confirmarFechaFin,
           () => setModalFechaFin(false)
         )}
@@ -819,22 +688,18 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
 
   return (
     <View style={styles.container}>
-
-      {/* ── Pestañas principales ── */}
-      <View style={styles.pestanasContainer}>
+      <View style={styles.tabsContainer}>
         <TouchableOpacity
-          style={[styles.pestana, pestana === "corporativos" && styles.pestanaActive]}
+          style={[
+            styles.tabButton,
+            pestana === "corporativos" && styles.tabButtonActive,
+          ]}
           onPress={() => setPestana("corporativos")}
         >
-          <MaterialIcons
-            name="business"
-            size={16}
-            color={pestana === "corporativos" ? COLORS.primary : COLORS.textSecondary}
-          />
           <Text
             style={[
-              styles.pestanaText,
-              pestana === "corporativos" && styles.pestanaTextActive,
+              styles.tabText,
+              pestana === "corporativos" && styles.tabTextActive,
             ]}
           >
             Corporativos
@@ -842,72 +707,99 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.pestana, pestana === "agenda" && styles.pestanaActive]}
+          style={[
+            styles.tabButton,
+            pestana === "agenda" && styles.tabButtonAgendaActive,
+          ]}
           onPress={() => setPestana("agenda")}
         >
-          <MaterialIcons
-            name="lock"
-            size={16}
-            color={pestana === "agenda" ? "#607D8B" : COLORS.textSecondary}
-          />
           <Text
             style={[
-              styles.pestanaText,
-              pestana === "agenda" && styles.pestanaTextAgenda,
+              styles.tabText,
+              pestana === "agenda" && styles.tabTextAgendaActive,
             ]}
           >
-            Mi Agenda
+            Mi agenda
           </Text>
         </TouchableOpacity>
       </View>
 
       {pestana === "corporativos" && (
         <>
-          <View style={styles.filtrosContainer}>
-            {(
-              [
-                { key: "asignados", label: "Mis Eventos" },
-                { key: "creados", label: "Creados por mí" },
-                ...(esAdminOJefe ? [{ key: "todos", label: "Todos" }] : []),
-              ] as { key: VistaFiltro; label: string }[]
-            ).map((f) => (
-              <TouchableOpacity
-                key={f.key}
+          <View style={styles.filtersContainer}>
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                eventosCorp.vistaActual === "asignados" &&
+                  styles.filterButtonActive,
+              ]}
+              onPress={() => eventosCorp.setVistaActual("asignados")}
+            >
+              <Text
                 style={[
-                  styles.filtroButton,
-                  vistaActual === f.key && styles.filtroButtonActive,
+                  styles.filterText,
+                  eventosCorp.vistaActual === "asignados" &&
+                    styles.filterTextActive,
                 ]}
-                onPress={() => setVistaActual(f.key)}
+              >
+                Asignados
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.filterButton,
+                eventosCorp.vistaActual === "creados" &&
+                  styles.filterButtonActive,
+              ]}
+              onPress={() => eventosCorp.setVistaActual("creados")}
+            >
+              <Text
+                style={[
+                  styles.filterText,
+                  eventosCorp.vistaActual === "creados" &&
+                    styles.filterTextActive,
+                ]}
+              >
+                Creados
+              </Text>
+            </TouchableOpacity>
+
+            {user?.rol === "Administrador" && (
+              <TouchableOpacity
+                style={[
+                  styles.filterButton,
+                  eventosCorp.vistaActual === "todos" &&
+                    styles.filterButtonActive,
+                ]}
+                onPress={() => eventosCorp.setVistaActual("todos")}
               >
                 <Text
                   style={[
-                    styles.filtroText,
-                    vistaActual === f.key && styles.filtroTextActive,
+                    styles.filterText,
+                    eventosCorp.vistaActual === "todos" &&
+                      styles.filterTextActive,
                   ]}
                 >
-                  {f.label}
+                  Todos
                 </Text>
               </TouchableOpacity>
-            ))}
+            )}
           </View>
 
           <FlatList
-            data={eventos}
+            data={eventosCorp.eventos}
             keyExtractor={(item) => item.id}
             renderItem={renderEventoCorp}
-            refreshControl={
-              <RefreshControl refreshing={loadingCorp} onRefresh={cargarEventosCorp} />
-            }
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <MaterialIcons name="event-busy" size={64} color={COLORS.textSecondary} />
-                <Text style={styles.emptyText}>No hay eventos disponibles</Text>
-              </View>
-            }
+            refreshing={eventosCorp.loading}
+            onRefresh={eventosCorp.refetch}
             contentContainerStyle={styles.listContent}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No hay eventos corporativos</Text>
+            }
           />
 
-          {esAdminOJefe && (
+          {puedeCrearEventoCorporativo && (
             <TouchableOpacity
               style={styles.fab}
               onPress={() => navigation.navigate("CrearEvento")}
@@ -920,7 +812,6 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
 
       {pestana === "agenda" && (
         <>
-          {/* Banner privacidad */}
           <View style={styles.privacidadBanner}>
             <MaterialIcons name="lock" size={13} color="#607D8B" />
             <Text style={styles.privacidadText}>
@@ -928,27 +819,24 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
             </Text>
           </View>
 
-          {/* Filtros agenda */}
-          <View style={styles.filtrosContainer}>
-            {(
-              [
-                { key: "proximos", label: "Próximos" },
-                { key: "todos", label: "Todos" },
-                { key: "completados", label: "Completados" },
-              ] as { key: FiltroAgenda; label: string }[]
-            ).map((f) => (
+          <View style={styles.filtersContainer}>
+            {[
+              { key: "proximos", label: "Próximos" },
+              { key: "todos", label: "Todos" },
+              { key: "completados", label: "Completados" },
+            ].map((f) => (
               <TouchableOpacity
                 key={f.key}
                 style={[
-                  styles.filtroButton,
-                  filtroAgenda === f.key && styles.filtroButtonAgendaActive,
+                  styles.filterButton,
+                  filtroAgenda === f.key && styles.filterButtonAgendaActive,
                 ]}
-                onPress={() => setFiltroAgenda(f.key)}
+                onPress={() => setFiltroAgenda(f.key as FiltroAgenda)}
               >
                 <Text
                   style={[
-                    styles.filtroText,
-                    filtroAgenda === f.key && styles.filtroTextActive,
+                    styles.filterText,
+                    filtroAgenda === f.key && styles.filterTextActive,
                   ]}
                 >
                   {f.label}
@@ -958,38 +846,23 @@ const EventosScreen: React.FC = ({ navigation }: any) => {
           </View>
 
           <FlatList
-            data={eventosPersonales}
+            data={eventosAgendaFiltrados}
             keyExtractor={(item) => item.id}
             renderItem={renderEventoPersonal}
-            refreshControl={
-              <RefreshControl refreshing={loadingAgenda} onRefresh={cargarAgenda} />
-            }
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <MaterialIcons name="event-note" size={64} color="#ddd" />
-                <Text style={styles.emptyText}>
-                  {filtroAgenda === "proximos"
-                    ? "Sin eventos próximos"
-                    : filtroAgenda === "completados"
-                    ? "Sin eventos completados"
-                    : "Tu agenda está vacía"}
-                </Text>
-                <Text style={styles.emptySubText}>
-                  Toca + para añadir un evento personal
-                </Text>
-              </View>
-            }
+            refreshing={agenda.loading}
+            onRefresh={agenda.refetch}
             contentContainerStyle={styles.listContent}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No tienes eventos personales</Text>
+            }
           />
 
-          {/* FAB agenda — disponible para todos los roles */}
           <TouchableOpacity style={styles.fabAgenda} onPress={abrirModalNuevo}>
             <MaterialIcons name="add" size={28} color="#fff" />
           </TouchableOpacity>
         </>
       )}
 
-      {/* Modal agenda personal */}
       {renderModalAgenda()}
     </View>
   );
@@ -1001,73 +874,65 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
 
-  // ── Pestañas ──
-  pestanasContainer: {
+  tabsContainer: {
     flexDirection: "row",
     backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
+    padding: 10,
+    gap: 10,
   },
-  pestana: {
+  tabButton: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 13,
-    gap: 6,
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
-  },
-  pestanaActive: {
-    borderBottomColor: COLORS.primary,
-  },
-  pestanaText: {
-    fontSize: FONT_SIZES.small,
-    color: COLORS.textSecondary,
-    fontWeight: "500",
-  },
-  pestanaTextActive: {
-    color: COLORS.primary,
-    fontWeight: "bold",
-  },
-  pestanaTextAgenda: {
-    color: "#607D8B",
-    fontWeight: "bold",
-  },
-
-  // ── Filtros ──
-  filtrosContainer: {
-    flexDirection: "row",
-    padding: 12,
-    gap: 8,
-    backgroundColor: COLORS.surface,
-    elevation: 2,
-  },
-  filtroButton: {
-    flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 6,
+    padding: 10,
     borderRadius: 8,
-    backgroundColor: "#f0f0f0",
     alignItems: "center",
+    backgroundColor: "#eee",
   },
-  filtroButtonActive: {
+  tabButtonActive: {
     backgroundColor: COLORS.primary,
   },
-  filtroButtonAgendaActive: {
+  tabButtonAgendaActive: {
     backgroundColor: "#607D8B",
   },
-  filtroText: {
+  tabText: {
     fontSize: FONT_SIZES.small,
     color: COLORS.textSecondary,
-    fontWeight: "500",
-  },
-  filtroTextActive: {
-    color: "#fff",
     fontWeight: "bold",
   },
+  tabTextActive: {
+    color: "#fff",
+  },
+  tabTextAgendaActive: {
+    color: "#fff",
+  },
 
-  // ── Banner privacidad ──
+  filtersContainer: {
+    flexDirection: "row",
+    padding: 10,
+    gap: 8,
+    backgroundColor: COLORS.surface,
+  },
+  filterButton: {
+    flex: 1,
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: "#eee",
+    alignItems: "center",
+  },
+  filterButtonActive: {
+    backgroundColor: COLORS.primary,
+  },
+  filterButtonAgendaActive: {
+    backgroundColor: "#607D8B",
+  },
+  filterText: {
+    color: COLORS.text,
+    fontWeight: "bold",
+    fontSize: FONT_SIZES.small,
+  },
+  filterTextActive: {
+    color: "#fff",
+  },
+
   privacidadBanner: {
     flexDirection: "row",
     alignItems: "center",
@@ -1075,260 +940,109 @@ const styles = StyleSheet.create({
     gap: 5,
     paddingVertical: 7,
     backgroundColor: "#ECEFF1",
-    borderBottomWidth: 1,
-    borderBottomColor: "#CFD8DC",
   },
   privacidadText: {
-    fontSize: 11,
+    fontSize: FONT_SIZES.small,
     color: "#607D8B",
-    fontWeight: "500",
   },
 
-  // ── Lista ──
   listContent: {
-    padding: 14,
+    padding: 15,
     paddingBottom: 90,
   },
-
-  // ── Tarjeta corporativa ──
-  eventoCard: {
+  card: {
     backgroundColor: COLORS.surface,
-    borderRadius: 10,
     padding: 15,
+    borderRadius: 10,
     marginBottom: 12,
     elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    position: "relative",
   },
-  eventoCardPasado: { opacity: 0.7 },
-  eventoHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 8,
-  },
-  eventoHeaderLeft: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  eventoTitulo: {
+  cardTitle: {
     fontSize: FONT_SIZES.medium,
     fontWeight: "bold",
     color: COLORS.text,
-    flex: 1,
   },
-  tipoBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  tipoText: {
-    fontSize: 10,
-    color: "#fff",
-    fontWeight: "bold",
-  },
-  eventoDescripcion: {
+  cardText: {
     fontSize: FONT_SIZES.small,
     color: COLORS.textSecondary,
-    marginBottom: 10,
-    lineHeight: 18,
+    marginTop: 4,
   },
-  eventoFooter: { gap: 6 },
-  infoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  infoText: {
-    fontSize: FONT_SIZES.small,
-    color: COLORS.textSecondary,
-    flex: 1,
-  },
-  estadoBadgeContainer: { marginTop: 8 },
-  estadoBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignSelf: "flex-start",
-  },
-  estadoText: {
-    fontSize: 11,
-    color: "#fff",
-    fontWeight: "600",
-  },
-  pasadoOverlay: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  pasadoText: {
-    fontSize: 10,
-    color: "#fff",
-    fontWeight: "bold",
-  },
-
-  // ── Tarjeta personal ──
-  cardPersonal: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    backgroundColor: COLORS.surface,
-    borderRadius: 10,
-    marginBottom: 10,
-    padding: 13,
-    borderLeftWidth: 4,
-    elevation: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.07,
-    shadowRadius: 2,
-    gap: 10,
-  },
-  cardPersonalCompletado: {
-    opacity: 0.6,
-    backgroundColor: "#FAFAFA",
-  },
-  checkBtn: { paddingTop: 2 },
-  cardPersonalBody: { flex: 1 },
-  cardPersonalTitulo: {
-    fontSize: FONT_SIZES.medium,
-    fontWeight: "bold",
-    color: COLORS.text,
-    marginBottom: 4,
-  },
-  cardPersonalMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 2,
-  },
-  tipoBadgePersonal: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  cardPersonalAcciones: {
-    alignItems: "flex-end",
-    gap: 6,
-  },
-  vencidoBadge: {
-    backgroundColor: "rgba(244,67,54,0.12)",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: "rgba(244,67,54,0.25)",
-  },
-  vencidoText: {
-    fontSize: 9,
-    color: "#F44336",
-    fontWeight: "bold",
-  },
-  tachado: {
+  textoCompletado: {
     textDecorationLine: "line-through",
     color: COLORS.textSecondary,
   },
-
-  // ── Empty ──
-  emptyContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 60,
+  cardActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 15,
+    marginTop: 10,
   },
   emptyText: {
-    fontSize: FONT_SIZES.medium,
-    color: COLORS.textSecondary,
-    marginTop: 15,
     textAlign: "center",
-  },
-  emptySubText: {
-    fontSize: FONT_SIZES.small,
+    marginTop: 40,
     color: COLORS.textSecondary,
-    marginTop: 6,
-    textAlign: "center",
   },
 
-  // ── FABs ──
   fab: {
     position: "absolute",
     right: 20,
-    bottom: 20,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    bottom: 25,
     backgroundColor: COLORS.primary,
-    alignItems: "center",
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: "center",
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
+    alignItems: "center",
+    elevation: 5,
   },
   fabAgenda: {
     position: "absolute",
     right: 20,
-    bottom: 20,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    bottom: 25,
     backgroundColor: "#607D8B",
-    alignItems: "center",
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: "center",
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
+    alignItems: "center",
+    elevation: 5,
   },
 
-  // ── Modal sheet ──
   modalBackdrop: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.45)",
   },
   modalSheet: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    maxHeight: "90%",
     backgroundColor: COLORS.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: "82%",
-    paddingBottom: Platform.OS === "ios" ? 30 : 16,
-    elevation: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    paddingHorizontal: 18,
+    paddingBottom: 20,
   },
   modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
+    width: 48,
+    height: 5,
+    borderRadius: 3,
     backgroundColor: "#ddd",
     alignSelf: "center",
     marginTop: 10,
-    marginBottom: 4,
+    marginBottom: 12,
   },
   modalHeader: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    alignItems: "center",
+    marginBottom: 10,
   },
   modalHeaderLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
+    gap: 6,
   },
   modalHeaderTitulo: {
     fontSize: FONT_SIZES.medium,
@@ -1336,184 +1050,166 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   modalScroll: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
+    maxHeight: "85%",
   },
 
-  // ── Formulario del modal ──
   formLabel: {
     fontSize: FONT_SIZES.small,
-    fontWeight: "600",
+    fontWeight: "bold",
     color: COLORS.text,
-    marginBottom: 7,
+    marginBottom: 6,
+    marginTop: 10,
   },
   formInput: {
-    backgroundColor: "#f8f8f8",
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
+    backgroundColor: COLORS.background,
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    fontSize: FONT_SIZES.small,
-    marginBottom: 14,
+    padding: 10,
+    marginBottom: 10,
     color: COLORS.text,
   },
   formTextArea: {
-    minHeight: 65,
+    minHeight: 70,
     textAlignVertical: "top",
   },
   formFila: {
     flexDirection: "row",
-    gap: 8,
-    marginBottom: 14,
+    gap: 10,
     alignItems: "center",
   },
   formDateBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f8f8f8",
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-    borderRadius: 8,
-    padding: 9,
     gap: 6,
+    backgroundColor: COLORS.background,
+    borderRadius: 8,
+    padding: 10,
   },
   formDateBtnText: {
-    fontSize: FONT_SIZES.small,
     color: COLORS.text,
+    fontSize: FONT_SIZES.small,
   },
   switchRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 10,
+    marginTop: 8,
   },
+
   chip: {
     paddingVertical: 7,
-    paddingHorizontal: 13,
+    paddingHorizontal: 12,
     borderRadius: 20,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: "#ddd",
-    backgroundColor: "#f5f5f5",
     marginRight: 8,
+    marginBottom: 10,
   },
   chipText: {
     fontSize: FONT_SIZES.small,
-    color: "#666",
-    fontWeight: "500",
+    color: COLORS.textSecondary,
+    fontWeight: "600",
   },
   chipTextActive: {
     color: "#fff",
-    fontWeight: "bold",
   },
   colorRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
     gap: 10,
-    marginBottom: 14,
+    marginBottom: 10,
+    flexWrap: "wrap",
   },
   colorCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
   colorCircleSelected: {
-    borderWidth: 2.5,
-    borderColor: "#000",
+    borderWidth: 2,
+    borderColor: "#222",
   },
   guardarBtn: {
-    flexDirection: "row",
+    marginTop: 18,
+    marginBottom: 24,
     padding: 14,
     borderRadius: 10,
-    alignItems: "center",
+    flexDirection: "row",
     justifyContent: "center",
-    marginTop: 6,
-    marginBottom: 20,
+    alignItems: "center",
     gap: 8,
-    elevation: 2,
   },
   guardarBtnText: {
     color: "#fff",
-    fontSize: FONT_SIZES.medium,
     fontWeight: "bold",
+    fontSize: FONT_SIZES.medium,
   },
 
-  // ── Selector de fecha anidado ──
   selectorOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(0,0,0,0.45)",
     justifyContent: "center",
-    alignItems: "center",
+    padding: 20,
   },
   selectorBox: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 20,
-    width: "88%",
-    maxHeight: "75%",
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    padding: 18,
   },
   selectorTitulo: {
     fontSize: FONT_SIZES.medium,
     fontWeight: "bold",
-    color: COLORS.text,
-    textAlign: "center",
     marginBottom: 12,
+    color: COLORS.text,
   },
   selectorLabel: {
     fontSize: FONT_SIZES.small,
-    fontWeight: "600",
+    fontWeight: "bold",
     color: COLORS.text,
     marginTop: 10,
     marginBottom: 6,
   },
-  selectorScroll: { maxHeight: 48 },
   selectorItem: {
-    paddingVertical: 9,
-    paddingHorizontal: 13,
-    marginRight: 7,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 8,
-    backgroundColor: "#f0f0f0",
-    minWidth: 50,
-    alignItems: "center",
+    backgroundColor: "#eee",
+    marginRight: 8,
   },
-  selectorItemActive: { backgroundColor: COLORS.primary },
+  selectorItemActive: {
+    backgroundColor: COLORS.primary,
+  },
   selectorItemText: {
-    fontSize: FONT_SIZES.small,
     color: COLORS.text,
+    fontWeight: "600",
   },
   selectorItemTextActive: {
     color: "#fff",
-    fontWeight: "bold",
   },
   selectorBotones: {
     flexDirection: "row",
-    justifyContent: "flex-end",
+    gap: 10,
     marginTop: 18,
-    gap: 8,
   },
   selectorBtnSecundario: {
     flex: 1,
-    paddingVertical: 11,
+    padding: 12,
     borderRadius: 8,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: "#eee",
     alignItems: "center",
   },
   selectorBtnPrimario: {
     flex: 1,
-    paddingVertical: 11,
+    padding: 12,
     borderRadius: 8,
     backgroundColor: COLORS.primary,
     alignItems: "center",
   },
   selectorBtnTextoOscuro: {
-    fontSize: FONT_SIZES.small,
     color: COLORS.text,
-    fontWeight: "600",
+    fontWeight: "bold",
   },
   selectorBtnTextoClaro: {
-    fontSize: FONT_SIZES.small,
     color: "#fff",
     fontWeight: "bold",
   },

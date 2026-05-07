@@ -1,6 +1,6 @@
+
 import { MaterialIcons } from "@expo/vector-icons";
-import { doc, getDoc } from "firebase/firestore";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -12,124 +12,25 @@ import {
   View,
 } from "react-native";
 import { useUser } from "../../context/UserContext";
-import {actualizarEstadoAsistencia, eliminarEvento,  } from "../../Services/eventosService";
-import { db } from "../../Services/firebaseConfig";
-import { EstadoAsistencia, Evento } from "../../types/eventos";
+import { useDetalleEvento } from "../../Hooks/Eventos/useDetalleEvento";
+import { EstadoAsistencia } from "../../types/eventos";
 import { COLORS, FONT_SIZES } from "../../types/index";
 
 const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
   const { eventoId } = route.params;
   const { user } = useUser();
 
-  const [evento, setEvento] = useState<Evento | null>(null);
-  const [loading, setLoading] = useState(true);
+  const {
+    evento,
+    loading,
+    cambiarAsistencia,
+    eliminar,
+    eventoPasado,
+    puedeEditar,
+    esAsistente,
+    miEstado,
+  } = useDetalleEvento(eventoId, user, navigation);
 
-  useEffect(() => {
-    cargarEvento();
-  }, [eventoId]);
-
-  const cargarEvento = async () => {
-    try {
-      const eventoRef = doc(db, "Eventos", eventoId);
-      const eventoSnap = await getDoc(eventoRef);
-
-      if (eventoSnap.exists()) {
-        setEvento({ id: eventoSnap.id, ...eventoSnap.data() } as Evento);
-      } else {
-        Alert.alert("Error", "Evento no encontrado");
-        navigation.goBack();
-      }
-    } catch (error) {
-      Alert.alert("Error", "No se pudo cargar el evento");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCambiarAsistencia = (nuevoEstado: EstadoAsistencia) => {
-    Alert.alert(
-      "Confirmar",
-      `¿Deseas ${
-        nuevoEstado === "Confirmado" ? "confirmar" : "rechazar"
-      } tu asistencia?`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Confirmar",
-          onPress: async () => {
-            try {
-              await actualizarEstadoAsistencia(
-                eventoId,
-                user?.uid!,
-                nuevoEstado
-              );
-              await cargarEvento();
-              Alert.alert("Éxito", "Tu respuesta ha sido registrada");
-            } catch {
-              Alert.alert("Error", "No se pudo actualizar tu respuesta");
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleAbrirLink = async (url: string) => {
-    try {
-      const supported = await Linking.canOpenURL(url);
-      if (supported) {
-        await Linking.openURL(url);
-      } else {
-        Alert.alert("Error", "No se puede abrir este enlace");
-      }
-    } catch {
-      Alert.alert("Error", "No se pudo abrir el enlace");
-    }
-  };
-
-  const handleEliminar = () => {
-    Alert.alert(
-      "Eliminar evento",
-      "¿Estás seguro? Esta acción no se puede deshacer.",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Eliminar",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await eliminarEvento(eventoId);
-              Alert.alert("Éxito", "Evento eliminado", [
-                { text: "OK", onPress: () => navigation.goBack() },
-              ]);
-            } catch {
-              Alert.alert("Error", "No se pudo eliminar el evento");
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
-    );
-  }
-
-  if (!evento) return null;
-
-  const puedeEditar =
-    user?.uid === evento.creadoPor || user?.rol === "Administrador";
-  const esAsistente = evento.asistentes.some((a) => a.uid === user?.uid);
-  const miEstado = evento.asistentes.find(
-    (a) => a.uid === user?.uid
-  )?.estadoAsistencia;
-  const esEventoPasado = new Date(evento.fechaInicio) < new Date(); 
-
-  // Model
   const formatearFecha = (fecha: string) => {
     return new Date(fecha).toLocaleDateString("es-ES", {
       weekday: "long",
@@ -139,7 +40,6 @@ const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
     });
   };
 
-   // model
   const getTipoColor = (tipo: string) => {
     switch (tipo) {
       case "Reunión":
@@ -155,7 +55,6 @@ const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
     }
   };
 
-   // model
   const getEstadoColor = (estado: EstadoAsistencia) => {
     switch (estado) {
       case "Confirmado":
@@ -173,11 +72,35 @@ const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
     }
   };
 
+  const handleAbrirLink = async (url: string) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert("Error", "No se puede abrir este enlace");
+      }
+    } catch {
+      Alert.alert("Error", "No se pudo abrir el enlace");
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
+
+  if (!evento) return null;
+
   return (
     <ScrollView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.titulo}>{evento.titulo}</Text>
+
         <View
           style={[
             styles.tipoBadge,
@@ -188,7 +111,6 @@ const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
         </View>
       </View>
 
-      {/* Descripción */}
       {evento.descripcion && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Descripción</Text>
@@ -196,7 +118,6 @@ const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
         </View>
       )}
 
-      {/* Fecha y hora */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Fecha y hora</Text>
 
@@ -223,7 +144,6 @@ const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
         )}
       </View>
 
-      {/* Ubicación */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Ubicación</Text>
 
@@ -233,10 +153,12 @@ const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
             size={20}
             color={COLORS.primary}
           />
+
           <View style={styles.infoContent}>
             <Text style={styles.infoLabel}>
               {evento.esVirtual ? "Evento virtual" : "Ubicación física"}
             </Text>
+
             <Text style={styles.infoValue}>
               {evento.esVirtual
                 ? "En línea"
@@ -256,16 +178,15 @@ const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
         )}
       </View>
 
-      {/* Organizador */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Organizador</Text>
+
         <View style={styles.infoRow}>
           <MaterialIcons name="person" size={20} color={COLORS.primary} />
           <Text style={styles.infoValue}>{evento.nombreCreador}</Text>
         </View>
       </View>
 
-      {/* Asistentes */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>
           Asistentes ({evento.asistentes.length})
@@ -277,10 +198,15 @@ const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
               <Text style={styles.asistenteNombre}>{asistente.nombre}</Text>
               <Text style={styles.asistenteRol}>{asistente.rol}</Text>
             </View>
+
             <View
               style={[
                 styles.estadoBadge,
-                { backgroundColor: getEstadoColor(asistente.estadoAsistencia) },
+                {
+                  backgroundColor: getEstadoColor(
+                    asistente.estadoAsistencia
+                  ),
+                },
               ]}
             >
               <Text style={styles.estadoText}>
@@ -291,20 +217,22 @@ const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
         ))}
       </View>
 
-      {/* Confirmar/Rechazar asistencia */}
-      {esAsistente && !esEventoPasado && (
+      {esAsistente && !eventoPasado && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Tu respuesta</Text>
 
           <View style={styles.estadoActualCard}>
             <Text style={styles.estadoActualLabel}>Estado actual:</Text>
+
             <View
               style={[
                 styles.estadoBadge,
-                { backgroundColor: getEstadoColor(miEstado!) },
+                {
+                  backgroundColor: getEstadoColor(miEstado || "Pendiente"),
+                },
               ]}
             >
-              <Text style={styles.estadoText}>{miEstado}</Text>
+              <Text style={styles.estadoText}>{miEstado || "Pendiente"}</Text>
             </View>
           </View>
 
@@ -315,7 +243,7 @@ const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
                 { backgroundColor: "#4CAF50" },
                 miEstado === "Confirmado" && styles.botonAsistenciaActivo,
               ]}
-              onPress={() => handleCambiarAsistencia("Confirmado")}
+              onPress={() => cambiarAsistencia("Confirmado")}
             >
               <MaterialIcons name="check" size={22} color="#fff" />
               <Text style={styles.botonAsistenciaText}>Confirmar</Text>
@@ -327,7 +255,7 @@ const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
                 { backgroundColor: "#F44336" },
                 miEstado === "Rechazado" && styles.botonAsistenciaActivo,
               ]}
-              onPress={() => handleCambiarAsistencia("Rechazado")}
+              onPress={() => cambiarAsistencia("Rechazado")}
             >
               <MaterialIcons name="close" size={22} color="#fff" />
               <Text style={styles.botonAsistenciaText}>Rechazar</Text>
@@ -336,7 +264,6 @@ const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
         </View>
       )}
 
-      {/* Notas */}
       {evento.notas && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Notas adicionales</Text>
@@ -344,23 +271,21 @@ const DetalleEventoScreen: React.FC = ({ route, navigation }: any) => {
         </View>
       )}
 
-      {/* Acciones de admin */}
-      {puedeEditar && (
+     {puedeEditar && (
         <View style={styles.section}>
-          <TouchableOpacity
-            style={styles.editarButton}
-            onPress={() =>
+         {!eventoPasado && (
+           <TouchableOpacity
+              style={styles.editarButton}
+              onPress={() =>
               navigation.navigate("EditarEvento", { eventoId: evento.id })
-            }
-          >
+               }
+            >
             <MaterialIcons name="edit" size={22} color="#fff" />
             <Text style={styles.editarText}>Editar evento</Text>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          )}
 
-          <TouchableOpacity
-            style={styles.eliminarButton}
-            onPress={handleEliminar}
-          >
+          <TouchableOpacity style={styles.eliminarButton} onPress={eliminar}>
             <MaterialIcons name="delete" size={22} color="#fff" />
             <Text style={styles.eliminarText}>Eliminar evento</Text>
           </TouchableOpacity>

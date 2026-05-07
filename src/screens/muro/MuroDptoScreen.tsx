@@ -1,6 +1,5 @@
-
 import { MaterialIcons } from "@expo/vector-icons";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Alert,
   FlatList,
@@ -14,26 +13,18 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
 import { useUser } from "../../context/UserContext";
-import {
-  cargarDepartamentos,
-  Departamento,
-} from "../../Services/departamentosService";
-import {
-  agregarComentario,
-  agregarReaccion,
-  crearPublicacion,
-  editarPublicacion,
-  eliminarComentario,
-  eliminarPublicacion,
-  obtenerMuroDepartamento,
-  Publicacion,
-} from "../../Services/publicacionesService";
+import { useMuroDpto } from "../../Hooks/useMuroDpto";
+import { Departamento } from "../../Services/departamentosService";
+import { Publicacion } from "../../Services/publicacionesService";
 import { COLORS, FONT_SIZES } from "../../types/index";
 
 const formatearFecha = (timestamp: any) => {
   if (!timestamp?.seconds) return "";
+
   const fecha = new Date(timestamp.seconds * 1000);
+
   return fecha.toLocaleString("es-MX", {
     day: "2-digit",
     month: "short",
@@ -45,119 +36,31 @@ const formatearFecha = (timestamp: any) => {
 
 const MuroDptoScreen: React.FC = ({ navigation }: any) => {
   const { user } = useUser();
-  const [posts, setPosts] = useState<Publicacion[]>([]);
-  const [loading, setLoading] = useState(false);
+  const muro = useMuroDpto(user);
+
   const [modalVisible, setModalVisible] = useState(false);
   const [contenidoPost, setContenidoPost] = useState("");
+
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [postEditando, setPostEditando] = useState<Publicacion | null>(null);
   const [textoEditado, setTextoEditado] = useState("");
 
-  // Para administradores
-  const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
-  const [deptoSeleccionado, setDeptoSeleccionado] = useState<string | null>(
-    null
-  );
   const [modalDeptosVisible, setModalDeptosVisible] = useState(false);
-
-  const esAdmin = user?.rol === "Administrador";
-  const esJefe = user?.rol === "Jefe";
-  const puedePublicar = esAdmin || esJefe;
-
-  // Comentarios: texto independiente por cada post
-  const [textosComentario, setTextosComentario] = useState<Record<string, string>>({});
-
-  // Determinar qué departamento mostrar
-  const departamentoActual = esAdmin
-    ? deptoSeleccionado
-    : user?.nombreDepartamento;
-
-  // Cargar departamentos si es admin
-  useEffect(() => {
-    if (esAdmin && user?.empresaId) {
-      cargarDepartamentos(user.empresaId)
-        .then((deptos) => {
-          setDepartamentos(deptos);
-          // Si no hay departamento seleccionado y hay departamentos, seleccionar el primero
-          if (deptos.length > 0 && !deptoSeleccionado) {
-            setDeptoSeleccionado(deptos[0].nombre);
-          }
-        })
-        .catch(() => {
-          Alert.alert("Error", "No se pudieron cargar los departamentos");
-        });
-    }
-  }, [esAdmin, user?.empresaId]);
-
-  const cargarMuro = async () => {
-    if (!user?.empresaId) {
-      Alert.alert("Error", "No tienes una empresa seleccionada");
-      return;
-    }
-
-    if (!user?.empresaId || !user?.idDepartamento) {
-      Alert.alert(
-        "Sin departamento",
-        "No tienes un departamento asignado. Contacta a tu administrador."
-      );
-      console.log("🔎 Cargando muro depto:", {
-        empresaId: user.empresaId,
-        departamentoId: user.idDepartamento,
-      });
-
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const data = await obtenerMuroDepartamento(
-        user.empresaId,
-        user.idDepartamento
-      );
-
-      setPosts(data);
-    } catch (error) {
-      console.error("Error al cargar muro:", error);
-      Alert.alert("Error", "No se pudieron cargar las publicaciones");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    cargarMuro();
-  }, [user?.empresaId, user?.idDepartamento]);
+  const [textosComentario, setTextosComentario] = useState<
+    Record<string, string>
+  >({});
 
   const crearPost = async () => {
-    if (!contenidoPost.trim() || !user?.empresaId || !departamentoActual) {
-      Alert.alert("Error", "Escribe algo antes de publicar");
-      return;
-    }
-
     try {
-      await crearPublicacion({
-        contenido: contenidoPost.trim(),
-        empresaId: user.empresaId,
-        tipoMuro: "departamento",
-        departamentoId: esAdmin ? undefined : user.idDepartamento,
-        nombreDepartamento: departamentoActual,
-        creadaPor: user.uid,
-        nombreUsuario: user.nombre,
-        rolUsuario: user.rol || "Empleado",
-      });
+      await muro.publicar(contenidoPost);
 
       setContenidoPost("");
       setModalVisible(false);
+
       Alert.alert("Éxito", "Publicación agregada al muro del departamento");
-      cargarMuro();
-    } catch (error) {
-      console.error("Error creando publicación:", error);
+    } catch {
       Alert.alert("Error", "No se pudo crear la publicación");
     }
-  };
-
-  const puedeModificar = (post: Publicacion) => {
-    return post.creadaPor === user?.uid || esAdmin;
   };
 
   const handleEliminar = (postId: string) => {
@@ -171,9 +74,8 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
           style: "destructive",
           onPress: async () => {
             try {
-              await eliminarPublicacion(postId);
+              await muro.eliminar(postId);
               Alert.alert("Éxito", "Publicación eliminada");
-              cargarMuro();
             } catch {
               Alert.alert("Error", "No se pudo eliminar");
             }
@@ -193,12 +95,13 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
     if (!textoEditado.trim() || !postEditando) return;
 
     try {
-      await editarPublicacion(postEditando.id, textoEditado.trim());
+      await muro.editar(postEditando.id, textoEditado);
+
       setEditModalVisible(false);
       setPostEditando(null);
       setTextoEditado("");
+
       Alert.alert("Éxito", "Publicación actualizada");
-      cargarMuro();
     } catch {
       Alert.alert("Error", "No se pudo editar");
     }
@@ -209,10 +112,8 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
     tipo: "me_gusta" | "importante" | "celebrar"
   ) => {
     try {
-      await agregarReaccion(postId, user?.uid!, user?.nombre!, tipo);
-      cargarMuro();
-    } catch (error) {
-      console.error("Error en reacción:", error);
+      await muro.reaccionar(postId, tipo);
+    } catch {
       Alert.alert("Error", "No se pudo agregar la reacción");
     }
   };
@@ -227,16 +128,16 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
 
   const handleEnviarComentario = async (postId: string) => {
     const texto = textosComentario[postId]?.trim();
+
     if (!texto) return;
+
     try {
-      await agregarComentario(postId, {
-        texto,
-        autorUid: user!.uid,
-        autorNombre: user!.nombre,
-      });
-      // Limpiar solo el input de ese post
-      setTextosComentario((prev) => ({ ...prev, [postId]: "" }));
-      cargarMuro();
+      await muro.comentar(postId, texto);
+
+      setTextosComentario((prev) => ({
+        ...prev,
+        [postId]: "",
+      }));
     } catch {
       Alert.alert("Error", "No se pudo agregar el comentario");
     }
@@ -250,8 +151,7 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
         style: "destructive",
         onPress: async () => {
           try {
-            await eliminarComentario(postId, comentarioId);
-            cargarMuro();
+            await muro.eliminarComentarioPost(postId, comentarioId);
           } catch {
             Alert.alert("Error", "No se pudo eliminar el comentario");
           }
@@ -261,12 +161,15 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
   };
 
   const cambiarDepartamento = (depto: Departamento) => {
-    setDeptoSeleccionado(depto.nombre);
+    muro.setDeptoSeleccionado(depto);
     setModalDeptosVisible(false);
   };
+  const cerrarModalPublicacion = () => {
+  setModalVisible(false);
+  setContenidoPost("");
+  };
 
-  // Vista para usuarios sin departamento (no admin)
-  if (!esAdmin && !user?.nombreDepartamento) {
+  if (!muro.esAdmin && !user?.nombreDepartamento) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyContainer}>
@@ -285,8 +188,7 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
     );
   }
 
-  // Vista para admin sin departamentos creados
-  if (esAdmin && departamentos.length === 0) {
+  if (muro.esAdmin && muro.departamentos.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.emptyContainer}>
@@ -309,21 +211,23 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
     <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor="#000" barStyle="light-content" />
 
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerLeft}
-          onPress={() => esAdmin && setModalDeptosVisible(true)}
-          disabled={!esAdmin}
+          onPress={() => muro.esAdmin && setModalDeptosVisible(true)}
+          disabled={!muro.esAdmin}
         >
           <MaterialIcons name="business" size={24} color={COLORS.primary} />
+
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>Muro Departamental</Text>
+
             <View style={styles.deptoSelector}>
               <Text style={styles.headerSubtitle}>
-                {departamentoActual || "Selecciona departamento"}
+                {muro.departamentoActual || "Selecciona departamento"}
               </Text>
-              {esAdmin && (
+
+              {muro.esAdmin && (
                 <MaterialIcons
                   name="expand-more"
                   size={18}
@@ -334,7 +238,7 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
           </View>
         </TouchableOpacity>
 
-        {puedePublicar && departamentoActual && (
+        {muro.puedePublicar && muro.departamentoActual && (
           <TouchableOpacity
             style={styles.addButton}
             onPress={() => setModalVisible(true)}
@@ -344,17 +248,15 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
         )}
       </View>
 
-      {/* Lista de publicaciones */}
       <FlatList
-        data={posts}
+        data={muro.posts}
         keyExtractor={(item) => item.id}
         refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={cargarMuro} />
+          <RefreshControl refreshing={muro.loading} onRefresh={muro.refetch} />
         }
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
           <View style={styles.postCard}>
-            {/* Header del post */}
             <View style={styles.postHeader}>
               <View style={styles.postAutorInfo}>
                 <MaterialIcons
@@ -362,6 +264,7 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
                   size={40}
                   color={COLORS.primary}
                 />
+
                 <View>
                   <Text style={styles.postAuthor}>{item.nombreUsuario}</Text>
                   <Text style={styles.postRol}>{item.rolUsuario}</Text>
@@ -371,7 +274,7 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
                 </View>
               </View>
 
-              {puedeModificar(item) && (
+              {muro.puedeModificar(item) && (
                 <View style={styles.postActions}>
                   <TouchableOpacity onPress={() => handleEditar(item)}>
                     <MaterialIcons
@@ -392,10 +295,8 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
               )}
             </View>
 
-            {/* Contenido */}
             <Text style={styles.postContent}>{item.contenido}</Text>
 
-            {/* Reacciones */}
             <View style={styles.reaccionesContainer}>
               <TouchableOpacity
                 style={[
@@ -440,12 +341,9 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
               </TouchableOpacity>
             </View>
 
-            {/* Comentarios — siempre visibles, como en Facebook */}
             <View style={styles.comentariosContainer}>
-              {/* Separador */}
               <View style={styles.comentariosSeparador} />
 
-              {/* Lista de comentarios existentes */}
               {item.comentarios && item.comentarios.length > 0 && (
                 <View style={styles.comentariosList}>
                   {item.comentarios.map((com) => (
@@ -455,11 +353,13 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
                         size={30}
                         color={COLORS.textSecondary}
                       />
+
                       <View style={styles.comentarioBurbuja}>
                         <View style={styles.comentarioHeader}>
                           <Text style={styles.comentarioAutor}>
                             {com.autorNombre}
                           </Text>
+
                           <Text style={styles.comentarioFecha}>
                             {new Date(com.fecha).toLocaleDateString("es-MX", {
                               day: "2-digit",
@@ -469,14 +369,22 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
                             })}
                           </Text>
                         </View>
+
                         <Text style={styles.comentarioTexto}>{com.texto}</Text>
                       </View>
-                      {(com.autorUid === user?.uid || esAdmin) && (
+
+                      {(com.autorUid === user?.uid || muro.esAdmin) && (
                         <TouchableOpacity
-                          onPress={() => handleEliminarComentario(item.id, com.id)}
+                          onPress={() =>
+                            handleEliminarComentario(item.id, com.id)
+                          }
                           style={styles.comentarioEliminar}
                         >
-                          <MaterialIcons name="close" size={16} color={COLORS.textSecondary} />
+                          <MaterialIcons
+                            name="close"
+                            size={16}
+                            color={COLORS.textSecondary}
+                          />
                         </TouchableOpacity>
                       )}
                     </View>
@@ -484,18 +392,26 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
                 </View>
               )}
 
-              {/* Input para escribir comentario — disponible para TODOS */}
               <View style={styles.nuevoComentarioRow}>
-                <MaterialIcons name="account-circle" size={32} color={COLORS.primary} />
+                <MaterialIcons
+                  name="account-circle"
+                  size={32}
+                  color={COLORS.primary}
+                />
+
                 <TextInput
                   style={styles.comentarioInput}
                   placeholder="Escribe un comentario..."
                   value={textosComentario[item.id] ?? ""}
                   onChangeText={(txt) =>
-                    setTextosComentario((prev) => ({ ...prev, [item.id]: txt }))
+                    setTextosComentario((prev) => ({
+                      ...prev,
+                      [item.id]: txt,
+                    }))
                   }
                   multiline
                 />
+
                 <TouchableOpacity
                   style={[
                     styles.enviarComentario,
@@ -517,10 +433,12 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
               size={64}
               color={COLORS.textSecondary}
             />
+
             <Text style={styles.emptyText}>
               No hay publicaciones en este departamento
             </Text>
-            {puedePublicar && (
+
+            {muro.puedePublicar && (
               <Text style={styles.emptySubtext}>
                 Toca el botón + para crear la primera
               </Text>
@@ -529,25 +447,25 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
         }
       />
 
-      {/* Modal selector de departamentos (solo admin) */}
       <Modal
         visible={modalDeptosVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => setModalDeptosVisible(false)}
+        onRequestClose={cerrarModalPublicacion}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <Text style={styles.modalTitle}>Seleccionar Departamento</Text>
 
             <FlatList
-              data={departamentos}
+              data={muro.departamentos}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[
                     styles.deptoItem,
-                    deptoSeleccionado === item.nombre && styles.deptoItemActive,
+                    muro.deptoSeleccionado?.id === item.id &&
+                      styles.deptoItemActive,
                   ]}
                   onPress={() => cambiarDepartamento(item)}
                 >
@@ -555,21 +473,23 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
                     name="folder"
                     size={24}
                     color={
-                      deptoSeleccionado === item.nombre
+                      muro.deptoSeleccionado?.id === item.id
                         ? COLORS.primary
                         : COLORS.textSecondary
                     }
                   />
+
                   <Text
                     style={[
                       styles.deptoItemText,
-                      deptoSeleccionado === item.nombre &&
+                      muro.deptoSeleccionado?.id === item.id &&
                         styles.deptoItemTextActive,
                     ]}
                   >
                     {item.nombre}
                   </Text>
-                  {deptoSeleccionado === item.nombre && (
+
+                  {muro.deptoSeleccionado?.id === item.id && (
                     <MaterialIcons
                       name="check"
                       size={24}
@@ -590,7 +510,6 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
         </View>
       </Modal>
 
-      {/* Modal crear publicación */}
       <Modal
         visible={modalVisible}
         transparent
@@ -601,7 +520,7 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
           <View style={styles.modalContainer}>
             <Text style={styles.modalTitle}>Nueva publicación</Text>
             <Text style={styles.modalSubtitle}>
-              Muro de {departamentoActual}
+              Muro de {muro.departamentoActual}
             </Text>
 
             <TextInput
@@ -618,10 +537,7 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => {
-                  setModalVisible(false);
-                  setContenidoPost("");
-                }}
+                onPress={cerrarModalPublicacion}
               >
                 <Text style={[styles.buttonText, { color: COLORS.text }]}>
                   Cancelar
@@ -644,7 +560,6 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
         </View>
       </Modal>
 
-      {/* Modal editar publicación */}
       <Modal
         visible={editModalVisible}
         transparent
@@ -690,7 +605,6 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
         </View>
       </Modal>
 
-      {/* Footer de navegación */}
       <View style={styles.footerContainer}>
         <TouchableOpacity
           style={styles.iconButton}
@@ -701,7 +615,7 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
 
         <TouchableOpacity
           style={styles.iconButton}
-          onPress={() => navigation.navigate("MuroDepto")}
+          onPress={() => navigation.navigate("MuroDpto")}
         >
           <MaterialIcons name="business" size={26} color={COLORS.primary} />
         </TouchableOpacity>
@@ -723,7 +637,6 @@ const MuroDptoScreen: React.FC = ({ navigation }: any) => {
     </SafeAreaView>
   );
 };
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
