@@ -1,326 +1,12 @@
-# from fastapi import FastAPI, HTTPException
-# from fastapi.middleware.cors import CORSMiddleware
-# from pydantic import BaseModel
-# from typing import List, Optional
-# from datetime import datetime
-
-# app = FastAPI(title="WorkStation API")
-
-# # CORS — permite peticiones desde la app móvil (Expo)
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"],
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
-# # ─────────────────────────────────────────────────────────────
-# #  MODELOS
-# # ─────────────────────────────────────────────────────────────
-
-# class Comentario(BaseModel):
-#     id: Optional[str] = None
-#     texto: str
-#     autorUid: str
-#     autorNombre: str
-#     fecha: Optional[str] = None
-
-# class Adjunto(BaseModel):
-#     id: Optional[str] = None
-#     nombre: str
-#     url: str
-#     subidoPor: str
-#     nombreSubidor: str
-#     fechaSubida: Optional[str] = None
-
-# class Tarea(BaseModel):
-#     id: Optional[int] = None
-#     titulo: str
-#     descripcion: Optional[str] = ""
-#     prioridad: Optional[str] = "Media"
-#     estado: Optional[str] = "Pendiente"
-#     creadaPor: Optional[str] = ""
-#     nombreCreador: Optional[str] = ""
-#     empresaId: Optional[str] = ""
-#     empresaNombre: Optional[str] = ""
-#     asignadoA: Optional[List[str]] = []
-#     nombresAsignados: Optional[List[str]] = []
-#     etiquetas: Optional[List[str]] = []
-#     comentarios: Optional[List[dict]] = []
-#     adjuntos: Optional[List[dict]] = []
-#     tipoAsignacion: Optional[str] = "usuarios"
-#     departamentoAsignado: Optional[str] = None
-#     fechaCreacion: Optional[str] = None
-#     fechaVencimiento: Optional[str] = None
-#     fechaCompletada: Optional[str] = None
-
-# class EstadoUpdate(BaseModel):
-#     estado: str
-
-# class AsistentesUpdate(BaseModel):
-#     asistentes: List[dict]
-
-# class ReaccionesUpdate(BaseModel):
-#     reacciones: List[dict]
-
-# class ContenidoUpdate(BaseModel):
-#     contenido: str
-
-# class Publicacion(BaseModel):
-#     id: Optional[int] = None
-#     contenido: str
-#     empresaId: str
-#     tipoMuro: Optional[str] = "general"
-#     departamentoId: Optional[str] = None
-#     nombreDepartamento: Optional[str] = None
-#     creadaPor: str
-#     nombreUsuario: str
-#     rolUsuario: str
-#     comentarios: Optional[List[dict]] = []
-#     reacciones: Optional[List[dict]] = []
-#     fechaCreacion: Optional[str] = None
-
-# class Evento(BaseModel):
-#     id: Optional[int] = None
-#     titulo: str
-#     descripcion: Optional[str] = ""
-#     tipo: Optional[str] = ""
-#     fechaInicio: str
-#     horaInicio: str
-#     fechaFin: Optional[str] = None
-#     horaFin: Optional[str] = None
-#     ubicacion: Optional[str] = None
-#     esVirtual: Optional[bool] = False
-#     linkVirtual: Optional[str] = None
-#     asistentes: Optional[List[dict]] = []
-#     capacidadMaxima: Optional[int] = None
-#     creadoPor: str
-#     nombreCreador: str
-#     empresaId: str
-#     empresaNombre: str
-#     notas: Optional[str] = ""
-#     tipoAsignacion: Optional[str] = "usuarios"
-#     departamentoAsignado: Optional[str] = None
-#     fechaCreacion: Optional[str] = None
-
-# # ─────────────────────────────────────────────────────────────
-# #  ALMACENAMIENTO EN MEMORIA (temporal para la actividad)
-# #  En producción conectar a PostgreSQL de Railway
-# # ─────────────────────────────────────────────────────────────
-
-# tareas: List[Tarea] = []
-# publicaciones: List[Publicacion] = []
-# eventos: List[Evento] = []
-
-# # ─────────────────────────────────────────────────────────────
-# #  HEALTH CHECK
-# # ─────────────────────────────────────────────────────────────
-
-# @app.get("/health")
-# def health():
-#     return {"status": "ok", "servicio": "WorkStation API", "timestamp": datetime.now().isoformat()}
-
-# # ─────────────────────────────────────────────────────────────
-# #  TAREAS
-# # ─────────────────────────────────────────────────────────────
-
-# @app.post("/tareas")
-# def crear_tarea(tarea: Tarea):
-#     nueva = Tarea(
-#         id=len(tareas) + 1,
-#         fechaCreacion=datetime.now().isoformat(),
-#         **tarea.model_dump(exclude={"id", "fechaCreacion"})
-#     )
-#     tareas.append(nueva)
-#     return {"mensaje": "Tarea creada desde FastAPI", "tarea": nueva}
-
-
-# @app.get("/tareas")
-# def obtener_tareas(
-#     empresaId: Optional[str] = None,
-#     creadaPor: Optional[str] = None,
-#     asignadoA: Optional[str] = None,
-# ):
-#     resultado = tareas
-
-#     if empresaId:
-#         resultado = [t for t in resultado if t.empresaId == empresaId]
-#     if creadaPor:
-#         resultado = [t for t in resultado if t.creadaPor == creadaPor]
-#     if asignadoA:
-#         resultado = [t for t in resultado if asignadoA in (t.asignadoA or [])]
-
-#     return {"total": len(resultado), "tareas": resultado}
-
-
-# @app.patch("/tareas/{tarea_id}/estado")
-# def actualizar_estado_tarea(tarea_id: int, body: EstadoUpdate):
-#     for t in tareas:
-#         if t.id == tarea_id:
-#             t.estado = body.estado
-#             if body.estado == "Completada":
-#                 t.fechaCompletada = datetime.now().isoformat()
-#             return {"ok": True, "tarea": t}
-#     raise HTTPException(status_code=404, detail="Tarea no encontrada")
-
-
-# @app.patch("/tareas/{tarea_id}")
-# def editar_tarea(tarea_id: int, datos: dict):
-#     for t in tareas:
-#         if t.id == tarea_id:
-#             for key, value in datos.items():
-#                 if hasattr(t, key):
-#                     setattr(t, key, value)
-#             return {"ok": True, "tarea": t}
-#     raise HTTPException(status_code=404, detail="Tarea no encontrada")
-
-
-# @app.post("/tareas/{tarea_id}/comentarios")
-# def agregar_comentario_tarea(tarea_id: int, comentario: Comentario):
-#     for t in tareas:
-#         if t.id == tarea_id:
-#             nuevo = comentario.model_dump()
-#             nuevo["id"] = str(int(datetime.now().timestamp() * 1000))
-#             nuevo["fecha"] = datetime.now().isoformat()
-#             t.comentarios = t.comentarios or []
-#             t.comentarios.append(nuevo)
-#             return {"ok": True, "comentario": nuevo}
-#     raise HTTPException(status_code=404, detail="Tarea no encontrada")
-
-
-# @app.post("/tareas/{tarea_id}/adjuntos")
-# def agregar_adjunto_tarea(tarea_id: int, adjunto: Adjunto):
-#     for t in tareas:
-#         if t.id == tarea_id:
-#             nuevo = adjunto.model_dump()
-#             nuevo["id"] = str(int(datetime.now().timestamp() * 1000))
-#             nuevo["fechaSubida"] = datetime.now().isoformat()
-#             t.adjuntos = t.adjuntos or []
-#             t.adjuntos.append(nuevo)
-#             return {"ok": True, "adjunto": nuevo}
-#     raise HTTPException(status_code=404, detail="Tarea no encontrada")
-
-
-# @app.delete("/tareas/{tarea_id}/adjuntos/{adjunto_id}")
-# def eliminar_adjunto_tarea(tarea_id: int, adjunto_id: str):
-#     for t in tareas:
-#         if t.id == tarea_id:
-#             t.adjuntos = [a for a in (t.adjuntos or []) if a.get("id") != adjunto_id]
-#             return {"ok": True}
-#     raise HTTPException(status_code=404, detail="Tarea no encontrada")
-
-
-# @app.delete("/tareas/{tarea_id}")
-# def eliminar_tarea(tarea_id: int):
-#     global tareas
-#     original = len(tareas)
-#     tareas = [t for t in tareas if t.id != tarea_id]
-#     if len(tareas) == original:
-#         raise HTTPException(status_code=404, detail="Tarea no encontrada")
-#     return {"ok": True}
-
-# # ─────────────────────────────────────────────────────────────
-# #  PUBLICACIONES
-# # ─────────────────────────────────────────────────────────────
-
-# @app.post("/publicaciones")
-# def crear_publicacion(pub: Publicacion):
-#     nueva = Publicacion(
-#         id=len(publicaciones) + 1,
-#         fechaCreacion=datetime.now().isoformat(),
-#         **pub.model_dump(exclude={"id", "fechaCreacion"})
-#     )
-#     publicaciones.append(nueva)
-#     return {"publicacion": nueva}
-
-
-# @app.get("/publicaciones")
-# def obtener_publicaciones(
-#     empresaId: Optional[str] = None,
-#     tipoMuro: Optional[str] = None,
-#     departamentoId: Optional[str] = None,
-# ):
-#     resultado = publicaciones
-#     if empresaId:
-#         resultado = [p for p in resultado if p.empresaId == empresaId]
-#     if tipoMuro:
-#         resultado = [p for p in resultado if p.tipoMuro == tipoMuro]
-#     if departamentoId:
-#         resultado = [p for p in resultado if p.departamentoId == departamentoId]
-#     return {"total": len(resultado), "publicaciones": resultado}
-
-
-# @app.patch("/publicaciones/{pub_id}")
-# def editar_publicacion(pub_id: int, body: ContenidoUpdate):
-#     for p in publicaciones:
-#         if p.id == pub_id:
-#             p.contenido = body.contenido
-#             return {"ok": True}
-#     raise HTTPException(status_code=404, detail="Publicación no encontrada")
-
-
-# @app.post("/publicaciones/{pub_id}/reacciones")
-# def actualizar_reacciones(pub_id: int, body: ReaccionesUpdate):
-#     for p in publicaciones:
-#         if p.id == pub_id:
-#             p.reacciones = body.reacciones
-#             return {"ok": True}
-#     raise HTTPException(status_code=404, detail="Publicación no encontrada")
-
-
-# @app.delete("/publicaciones/{pub_id}")
-# def eliminar_publicacion(pub_id: int):
-#     global publicaciones
-#     publicaciones = [p for p in publicaciones if p.id != pub_id]
-#     return {"ok": True}
-
-# # ─────────────────────────────────────────────────────────────
-# #  EVENTOS
-# # ─────────────────────────────────────────────────────────────
-
-# @app.post("/eventos")
-# def crear_evento(evento: Evento):
-#     nuevo = Evento(
-#         id=len(eventos) + 1,
-#         fechaCreacion=datetime.now().isoformat(),
-#         **evento.model_dump(exclude={"id", "fechaCreacion"})
-#     )
-#     eventos.append(nuevo)
-#     return {"evento": nuevo}
-
-
-# @app.get("/eventos")
-# def obtener_eventos(empresaId: Optional[str] = None):
-#     resultado = eventos
-#     if empresaId:
-#         resultado = [e for e in resultado if e.empresaId == empresaId]
-#     return {"total": len(resultado), "eventos": resultado}
-
-
-# @app.patch("/eventos/{evento_id}/asistentes")
-# def actualizar_asistentes(evento_id: int, body: AsistentesUpdate):
-#     for e in eventos:
-#         if e.id == evento_id:
-#             e.asistentes = body.asistentes
-#             return {"ok": True}
-#     raise HTTPException(status_code=404, detail="Evento no encontrado")
-
-
-# @app.delete("/eventos/{evento_id}")
-# def eliminar_evento(evento_id: int):
-#     global eventos
-#     eventos = [e for e in eventos if e.id != evento_id]
-#     return {"ok": True}
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 import os
-from dotenv import load_dotenv
 import psycopg2
 import json
 
-load_dotenv()
 app = FastAPI(title="WorkStation API")
 
 app.add_middleware(
@@ -392,7 +78,7 @@ def init_db():
             departamento_asignado TEXT
         );
     """)
-    
+
     cur.execute("""
         CREATE TABLE IF NOT EXISTS avisos (
             id SERIAL PRIMARY KEY,
@@ -410,6 +96,26 @@ def init_db():
             comentarios TEXT DEFAULT '[]',
             fecha_creacion TEXT,
             archivado BOOLEAN DEFAULT FALSE
+        );
+    """)
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS agenda_personal (
+            id SERIAL PRIMARY KEY,
+            uid TEXT NOT NULL,
+            titulo TEXT NOT NULL,
+            descripcion TEXT DEFAULT '',
+            tipo TEXT DEFAULT '',
+            color TEXT DEFAULT '',
+            fecha_inicio TEXT NOT NULL,
+            hora_inicio TEXT DEFAULT '',
+            fecha_fin TEXT,
+            hora_fin TEXT,
+            ubicacion TEXT,
+            notas TEXT DEFAULT '',
+            completado BOOLEAN DEFAULT FALSE,
+            fecha_creacion TEXT,
+            fecha_actualizacion TEXT
         );
     """)
 
@@ -498,11 +204,29 @@ class Aviso(BaseModel):
     comentarios: Optional[List[dict]] = []
     fechaCreacion: Optional[str] = None
     archivado: Optional[bool] = False
- 
+
 class ReaccionAviso(BaseModel):
     uid: str
     nombreUsuario: str
     tipo: str
+
+class EventoPersonal(BaseModel):
+    id: Optional[int] = None
+    uid: str
+    titulo: str
+    descripcion: Optional[str] = ""
+    tipo: Optional[str] = ""
+    color: Optional[str] = ""
+    fechaInicio: str
+    horaInicio: str
+    fechaFin: Optional[str] = None
+    horaFin: Optional[str] = None
+    ubicacion: Optional[str] = None
+    notas: Optional[str] = ""
+    completado: Optional[bool] = False
+    fechaCreacion: Optional[str] = None
+    fechaActualizacion: Optional[str] = None
+
 # ─────────────────────────────────────────────────────────────
 #  HELPERS
 # ─────────────────────────────────────────────────────────────
@@ -544,7 +268,16 @@ def row_to_aviso(row) -> dict:
         "comentarios": json.loads(row[12] or "[]"),
         "fechaCreacion": row[13], "archivado": row[14],
     }
- 
+
+def row_to_agenda(row) -> dict:
+    return {
+        "id": row[0], "uid": row[1], "titulo": row[2], "descripcion": row[3],
+        "tipo": row[4], "color": row[5], "fechaInicio": row[6], "horaInicio": row[7],
+        "fechaFin": row[8], "horaFin": row[9], "ubicacion": row[10],
+        "notas": row[11], "completado": row[12],
+        "fechaCreacion": row[13], "fechaActualizacion": row[14],
+    }
+
 # ─────────────────────────────────────────────────────────────
 #  HEALTH
 # ─────────────────────────────────────────────────────────────
@@ -754,7 +487,10 @@ def eliminar_evento(evento_id: int):
     conn.close()
     return {"ok": True}
 
-#Avisos
+# ─────────────────────────────────────────────────────────────
+#  AVISOS
+# ─────────────────────────────────────────────────────────────
+
 @app.post("/avisos")
 def crear_aviso(aviso: Aviso):
     conn = get_db()
@@ -776,7 +512,7 @@ def crear_aviso(aviso: Aviso):
     cur.close()
     conn.close()
     return {"aviso": {**aviso.model_dump(), "id": new_id}}
- 
+
 @app.get("/avisos")
 def obtener_avisos(
     empresaId: Optional[str] = None,
@@ -798,7 +534,7 @@ def obtener_avisos(
     if departamento:
         avisos = [a for a in avisos if a["departamento"] == departamento]
     return {"total": len(avisos), "avisos": avisos}
- 
+
 @app.get("/avisos/{aviso_id}")
 def obtener_aviso(aviso_id: int):
     conn = get_db()
@@ -810,15 +546,13 @@ def obtener_aviso(aviso_id: int):
     if not row:
         raise HTTPException(status_code=404, detail="Aviso no encontrado")
     return {"aviso": row_to_aviso(row)}
- 
+
 @app.patch("/avisos/{aviso_id}")
 def editar_aviso(aviso_id: int, datos: dict):
     conn = get_db()
     cur = conn.cursor()
-    campos = {
-        "titulo": "titulo", "contenido": "contenido",
-        "destacado": "destacado", "archivado": "archivado",
-    }
+    campos = {"titulo": "titulo", "contenido": "contenido",
+              "destacado": "destacado", "archivado": "archivado"}
     for campo_api, campo_db in campos.items():
         if campo_api in datos:
             cur.execute(f"UPDATE avisos SET {campo_db}=%s WHERE id=%s",
@@ -827,7 +561,7 @@ def editar_aviso(aviso_id: int, datos: dict):
     cur.close()
     conn.close()
     return {"ok": True}
- 
+
 @app.delete("/avisos/{aviso_id}")
 def eliminar_aviso(aviso_id: int):
     conn = get_db()
@@ -837,7 +571,7 @@ def eliminar_aviso(aviso_id: int):
     cur.close()
     conn.close()
     return {"ok": True}
- 
+
 @app.post("/avisos/{aviso_id}/reacciones")
 def agregar_reaccion_aviso(aviso_id: int, reaccion: ReaccionAviso):
     conn = get_db()
@@ -854,15 +588,12 @@ def agregar_reaccion_aviso(aviso_id: int, reaccion: ReaccionAviso):
         else:
             reacciones = [
                 {**r, "tipo": reaccion.tipo, "fecha": datetime.now().isoformat()}
-                if r["uid"] == reaccion.uid else r
-                for r in reacciones
+                if r["uid"] == reaccion.uid else r for r in reacciones
             ]
     else:
         reacciones.append({
-            "uid": reaccion.uid,
-            "nombreUsuario": reaccion.nombreUsuario,
-            "tipo": reaccion.tipo,
-            "fecha": datetime.now().isoformat(),
+            "uid": reaccion.uid, "nombreUsuario": reaccion.nombreUsuario,
+            "tipo": reaccion.tipo, "fecha": datetime.now().isoformat(),
         })
     cur.execute("UPDATE avisos SET reacciones=%s WHERE id=%s",
                 (json.dumps(reacciones), aviso_id))
@@ -870,7 +601,7 @@ def agregar_reaccion_aviso(aviso_id: int, reaccion: ReaccionAviso):
     cur.close()
     conn.close()
     return {"ok": True}
- 
+
 @app.post("/avisos/{aviso_id}/comentarios")
 def agregar_comentario_aviso(aviso_id: int, comentario: Comentario):
     conn = get_db()
@@ -893,7 +624,7 @@ def agregar_comentario_aviso(aviso_id: int, comentario: Comentario):
     cur.close()
     conn.close()
     return {"ok": True}
- 
+
 @app.delete("/avisos/{aviso_id}/comentarios/{comentario_id}")
 def eliminar_comentario_aviso(aviso_id: int, comentario_id: str):
     conn = get_db()
@@ -903,8 +634,88 @@ def eliminar_comentario_aviso(aviso_id: int, comentario_id: str):
     if not row:
         raise HTTPException(status_code=404, detail="Aviso no encontrado")
     comentarios = [c for c in json.loads(row[0] or "[]") if c.get("id") != comentario_id]
-    cur.execute("UPDATE avisos SET comentarios=%s WHERE id=%s",
+    cur.execute("UPDATE avisos SET comentarios=%s WHERE id=%s", 
                 (json.dumps(comentarios), aviso_id))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return {"ok": True}
+
+# ─────────────────────────────────────────────────────────────
+#  AGENDA PERSONAL
+# ─────────────────────────────────────────────────────────────
+
+@app.post("/agenda")
+def crear_evento_personal(evento: EventoPersonal):
+    conn = get_db()
+    cur = conn.cursor()
+    ahora = datetime.now().isoformat()
+    cur.execute("""
+        INSERT INTO agenda_personal (uid,titulo,descripcion,tipo,color,fecha_inicio,hora_inicio,
+        fecha_fin,hora_fin,ubicacion,notas,completado,fecha_creacion,fecha_actualizacion)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
+    """, (
+        evento.uid, evento.titulo, evento.descripcion, evento.tipo, evento.color,
+        evento.fechaInicio, evento.horaInicio, evento.fechaFin, evento.horaFin,
+        evento.ubicacion, evento.notas, evento.completado, ahora, ahora,
+    ))
+    new_id = cur.fetchone()[0]
+    conn.commit()
+    cur.close()
+    conn.close()
+    return {"evento": {**evento.model_dump(), "id": new_id}}
+
+@app.get("/agenda")
+def obtener_agenda(uid: Optional[str] = None):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT * FROM agenda_personal WHERE uid=%s ORDER BY fecha_inicio ASC", (uid,)
+    )
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return {"total": len(rows), "eventos": [row_to_agenda(r) for r in rows]}
+
+@app.get("/agenda/{evento_id}")
+def obtener_evento_personal(evento_id: int):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM agenda_personal WHERE id=%s", (evento_id,))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Evento no encontrado")
+    return {"evento": row_to_agenda(row)}
+
+@app.patch("/agenda/{evento_id}")
+def editar_evento_personal(evento_id: int, datos: dict):
+    conn = get_db()
+    cur = conn.cursor()
+    campos = {
+        "titulo": "titulo", "descripcion": "descripcion",
+        "tipo": "tipo", "color": "color",
+        "fechaInicio": "fecha_inicio", "horaInicio": "hora_inicio",
+        "fechaFin": "fecha_fin", "horaFin": "hora_fin",
+        "ubicacion": "ubicacion", "notas": "notas", "completado": "completado",
+    }
+    for campo_api, campo_db in campos.items():
+        if campo_api in datos:
+            cur.execute(f"UPDATE agenda_personal SET {campo_db}=%s WHERE id=%s",
+                        (datos[campo_api], evento_id))
+    cur.execute("UPDATE agenda_personal SET fecha_actualizacion=%s WHERE id=%s",
+                (datetime.now().isoformat(), evento_id))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return {"ok": True}
+
+@app.delete("/agenda/{evento_id}")
+def eliminar_evento_personal(evento_id: int):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM agenda_personal WHERE id=%s", (evento_id,))
     conn.commit()
     cur.close()
     conn.close()
