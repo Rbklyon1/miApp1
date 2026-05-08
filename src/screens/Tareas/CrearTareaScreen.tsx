@@ -17,7 +17,6 @@ import { crearTarea } from "../../Services/tareasService";
 import { COLORS, FONT_SIZES } from "../../types/index";
 import { PrioridadTarea } from "../../types/tareas";
 import { cargarDepartamentos, Departamento} from "../../Services/departamentosService";
-import { crearTareaRealRailway } from "../../Services/railwayApiService";
 
 const CrearTareaScreen: React.FC = ({ navigation }: any) => {
   const { user } = useUser();
@@ -147,22 +146,19 @@ const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<string>
       departamentoSeleccionado
     );
 
-    console.log(" Departamento seleccionado:", departamentoSeleccionado);
-    console.log(" Usuarios encontrados:", usuariosDepto);
-
     if (usuariosDepto.length === 0) {
       Alert.alert("Error", "No hay usuarios asignados a ese departamento");
       return;
     }
 
     uidsFinales = usuariosDepto.map((u) => u.uid);
+    nombresAsignados = usuariosDepto.map((u) => u.nombre);  // ← también faltaba esto
     departamentoFinal = departamentoSeleccionado;
   } else {
     if (usuariosSeleccionados.length === 0) {
       Alert.alert("Error", "Debes asignar la tarea a al menos un usuario");
       return;
     }
-
     uidsFinales = usuariosSeleccionados;
     nombresAsignados = usuariosDisponibles
       .filter((u) => usuariosSeleccionados.includes(u.uid))
@@ -171,16 +167,24 @@ const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<string>
 
   setIsLoading(true);
   try {
-    await crearTareaRealRailway({
-  titulo,
-  descripcion,
-  prioridad,
-  creadaPor: user?.uid!,
-  nombreCreador: user?.nombre!,
-  empresaId: user?.empresaSeleccionada!,
-  asignadoA: usuariosSeleccionados,
-  nombresAsignados,
-});
+    // ✅ SOLO esta llamada — usa crearTarea del tareasService (FastAPI + offline)
+    await crearTarea(
+      {
+        titulo,
+        descripcion,
+        prioridad,
+        fechaVencimiento,
+        asignadoA: uidsFinales,
+        etiquetas: [],
+        tipoAsignacion: modoAsignacion,
+        departamentoAsignado: departamentoFinal,
+      },
+      user?.uid!,
+      user?.nombre!,
+      user?.empresaSeleccionada!,
+      user?.empresaNombre ?? "",
+      nombresAsignados
+    );
 
     Alert.alert("Éxito", "Tarea creada correctamente", [
       { text: "OK", onPress: () => navigation.goBack() },
