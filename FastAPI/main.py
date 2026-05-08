@@ -316,9 +316,11 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 import os
+from dotenv import load_dotenv
 import psycopg2
 import json
 
+load_dotenv()
 app = FastAPI(title="WorkStation API")
 
 app.add_middleware(
@@ -388,6 +390,26 @@ def init_db():
             adjuntos TEXT DEFAULT '[]',
             tipo_asignacion TEXT DEFAULT 'usuarios',
             departamento_asignado TEXT
+        );
+    """)
+    
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS avisos (
+            id SERIAL PRIMARY KEY,
+            titulo TEXT NOT NULL,
+            contenido TEXT DEFAULT '',
+            tipo_muro TEXT DEFAULT 'General',
+            departamento TEXT,
+            destacado BOOLEAN DEFAULT FALSE,
+            creada_por TEXT DEFAULT '',
+            nombre_creador TEXT DEFAULT '',
+            rol_creador TEXT DEFAULT '',
+            empresa_id TEXT DEFAULT '',
+            empresa_nombre TEXT DEFAULT '',
+            reacciones TEXT DEFAULT '[]',
+            comentarios TEXT DEFAULT '[]',
+            fecha_creacion TEXT,
+            archivado BOOLEAN DEFAULT FALSE
         );
     """)
 
@@ -460,6 +482,27 @@ class Evento(BaseModel):
 class AsistentesUpdate(BaseModel):
     asistentes: List[dict]
 
+class Aviso(BaseModel):
+    id: Optional[int] = None
+    titulo: str
+    contenido: str
+    tipoMuro: Optional[str] = "General"
+    departamento: Optional[str] = None
+    destacado: Optional[bool] = False
+    creadoPor: str
+    nombreCreador: str
+    rolCreador: Optional[str] = ""
+    empresaId: str
+    empresaNombre: str
+    reacciones: Optional[List[dict]] = []
+    comentarios: Optional[List[dict]] = []
+    fechaCreacion: Optional[str] = None
+    archivado: Optional[bool] = False
+ 
+class ReaccionAviso(BaseModel):
+    uid: str
+    nombreUsuario: str
+    tipo: str
 # ─────────────────────────────────────────────────────────────
 #  HELPERS
 # ─────────────────────────────────────────────────────────────
@@ -491,6 +534,17 @@ def row_to_evento(row) -> dict:
         "tipoAsignacion": row[21], "departamentoAsignado": row[22],
     }
 
+def row_to_aviso(row) -> dict:
+    return {
+        "id": row[0], "titulo": row[1], "contenido": row[2],
+        "tipoMuro": row[3], "departamento": row[4], "destacado": row[5],
+        "creadoPor": row[6], "nombreCreador": row[7], "rolCreador": row[8],
+        "empresaId": row[9], "empresaNombre": row[10],
+        "reacciones": json.loads(row[11] or "[]"),
+        "comentarios": json.loads(row[12] or "[]"),
+        "fechaCreacion": row[13], "archivado": row[14],
+    }
+ 
 # ─────────────────────────────────────────────────────────────
 #  HEALTH
 # ─────────────────────────────────────────────────────────────
@@ -695,6 +749,162 @@ def eliminar_evento(evento_id: int):
     conn = get_db()
     cur = conn.cursor()
     cur.execute("DELETE FROM eventos WHERE id=%s", (evento_id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return {"ok": True}
+
+#Avisos
+@app.post("/avisos")
+def crear_aviso(aviso: Aviso):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO avisos (titulo,contenido,tipo_muro,departamento,destacado,
+        creada_por,nombre_creador,rol_creador,empresa_id,empresa_nombre,
+        reacciones,comentarios,fecha_creacion,archivado)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id
+    """, (
+        aviso.titulo, aviso.contenido, aviso.tipoMuro, aviso.departamento,
+        aviso.destacado, aviso.creadoPor, aviso.nombreCreador, aviso.rolCreador,
+        aviso.empresaId, aviso.empresaNombre,
+        json.dumps(aviso.reacciones), json.dumps(aviso.comentarios),
+        datetime.now().isoformat(), aviso.archivado,
+    ))
+    new_id = cur.fetchone()[0]
+    conn.commit()
+    cur.close()
+    conn.close()
+    return {"aviso": {**aviso.model_dump(), "id": new_id}}
+ 
+@app.get("/avisos")
+def obtener_avisos(
+    empresaId: Optional[str] = None,
+    tipoMuro: Optional[str] = None,
+    departamento: Optional[str] = None,
+):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT * FROM avisos WHERE empresa_id=%s AND archivado=FALSE ORDER BY fecha_creacion DESC",
+        (empresaId,)
+    )
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    avisos = [row_to_aviso(r) for r in rows]
+    if tipoMuro:
+        avisos = [a for a in avisos if a["tipoMuro"] == tipoMuro]
+    if departamento:
+        avisos = [a for a in avisos if a["departamento"] == departamento]
+    return {"total": len(avisos), "avisos": avisos}
+ 
+@app.get("/avisos/{aviso_id}")
+def obtener_aviso(aviso_id: int):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM avisos WHERE id=%s", (aviso_id,))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="Aviso no encontrado")
+    return {"aviso": row_to_aviso(row)}
+ 
+@app.patch("/avisos/{aviso_id}")
+def editar_aviso(aviso_id: int, datos: dict):
+    conn = get_db()
+    cur = conn.cursor()
+    campos = {
+        "titulo": "titulo", "contenido": "contenido",
+        "destacado": "destacado", "archivado": "archivado",
+    }
+    for campo_api, campo_db in campos.items():
+        if campo_api in datos:
+            cur.execute(f"UPDATE avisos SET {campo_db}=%s WHERE id=%s",
+                        (datos[campo_api], aviso_id))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return {"ok": True}
+ 
+@app.delete("/avisos/{aviso_id}")
+def eliminar_aviso(aviso_id: int):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM avisos WHERE id=%s", (aviso_id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return {"ok": True}
+ 
+@app.post("/avisos/{aviso_id}/reacciones")
+def agregar_reaccion_aviso(aviso_id: int, reaccion: ReaccionAviso):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT reacciones FROM avisos WHERE id=%s", (aviso_id,))
+    row = cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Aviso no encontrado")
+    reacciones = json.loads(row[0] or "[]")
+    existente = next((r for r in reacciones if r["uid"] == reaccion.uid), None)
+    if existente:
+        if existente["tipo"] == reaccion.tipo:
+            reacciones = [r for r in reacciones if r["uid"] != reaccion.uid]
+        else:
+            reacciones = [
+                {**r, "tipo": reaccion.tipo, "fecha": datetime.now().isoformat()}
+                if r["uid"] == reaccion.uid else r
+                for r in reacciones
+            ]
+    else:
+        reacciones.append({
+            "uid": reaccion.uid,
+            "nombreUsuario": reaccion.nombreUsuario,
+            "tipo": reaccion.tipo,
+            "fecha": datetime.now().isoformat(),
+        })
+    cur.execute("UPDATE avisos SET reacciones=%s WHERE id=%s",
+                (json.dumps(reacciones), aviso_id))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return {"ok": True}
+ 
+@app.post("/avisos/{aviso_id}/comentarios")
+def agregar_comentario_aviso(aviso_id: int, comentario: Comentario):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT comentarios FROM avisos WHERE id=%s", (aviso_id,))
+    row = cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Aviso no encontrado")
+    comentarios = json.loads(row[0] or "[]")
+    comentarios.append({
+        "id": str(int(datetime.now().timestamp() * 1000)),
+        "texto": comentario.texto,
+        "autorUid": comentario.autorUid,
+        "autorNombre": comentario.autorNombre,
+        "fecha": datetime.now().isoformat(),
+    })
+    cur.execute("UPDATE avisos SET comentarios=%s WHERE id=%s",
+                (json.dumps(comentarios), aviso_id))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return {"ok": True}
+ 
+@app.delete("/avisos/{aviso_id}/comentarios/{comentario_id}")
+def eliminar_comentario_aviso(aviso_id: int, comentario_id: str):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT comentarios FROM avisos WHERE id=%s", (aviso_id,))
+    row = cur.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Aviso no encontrado")
+    comentarios = [c for c in json.loads(row[0] or "[]") if c.get("id") != comentario_id]
+    cur.execute("UPDATE avisos SET comentarios=%s WHERE id=%s",
+                (json.dumps(comentarios), aviso_id))
     conn.commit()
     cur.close()
     conn.close()
