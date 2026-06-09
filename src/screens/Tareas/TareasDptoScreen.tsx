@@ -1,7 +1,557 @@
+// import { MaterialIcons } from "@expo/vector-icons";
+// import React, { useEffect, useState } from "react";
+// import {
+//   Alert,
+//   FlatList,
+//   Modal,
+//   RefreshControl,
+//   SafeAreaView,
+//   StyleSheet,
+//   Text,
+//   TouchableOpacity,
+//   View,
+// } from "react-native";
+// import { useUser } from "../../context/UserContext";
+// import {
+//   cargarDepartamentos,
+//   Departamento,
+// } from "../../Services/departamentosService";
+// import {
+//   actualizarEstadoTarea,
+//   eliminarTarea,
+//   obtenerTareasAsignadasDepartamento,
+//   obtenerTareasDepartamento,
+// } from "../../Services/tareasService";
+// import { COLORS, FONT_SIZES } from "../../types";
+// import { EstadoTarea, Tarea } from "../../types/tareas";
+
+// const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
+//   const { user } = useUser();
+//   const [tareas, setTareas] = useState<Tarea[]>([]);
+//   const [loading, setLoading] = useState(false);
+//   const [filtroEstado, setFiltroEstado] = useState<EstadoTarea | "Todas">(
+//     "Todas"
+//   );
+//   const [vistaActual, setVistaActual] = useState<"todas" | "asignadas">(
+//     "todas"
+//   );
+
+//   // Para administradores
+//   const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
+//   const [deptoSeleccionado, setDeptoSeleccionado] = useState<string | null>(
+//     null
+//   );
+//   const [modalDeptosVisible, setModalDeptosVisible] = useState(false);
+
+//   const esAdmin = user?.rol === "Administrador";
+//   const esJefe = user?.rol === "Jefe";
+//   const puedeCrear = esAdmin || esJefe;
+
+//   const departamentoActual = esAdmin
+//     ? deptoSeleccionado
+//     : user?.nombreDepartamento;
+
+//   // Cargar departamentos si es admin
+//   useEffect(() => {
+//     if (esAdmin && user?.empresaId) {
+//       cargarDepartamentos(user.empresaId)
+//         .then((deptos) => {
+//           setDepartamentos(deptos);
+//           if (deptos.length > 0 && !deptoSeleccionado) {
+//             setDeptoSeleccionado(deptos[0].nombre);
+//           }
+//         })
+//         .catch(() => {
+//           Alert.alert("Error", "No se pudieron cargar los departamentos");
+//         });
+//     }
+//   }, [esAdmin, user?.empresaId]);
+
+//   const cargarTareas = async () => {
+//     if (!user?.empresaId || !departamentoActual) return;
+
+//     try {
+//       setLoading(true);
+//       let data: Tarea[];
+
+//       if (vistaActual === "todas") {
+//         data = await obtenerTareasDepartamento(
+//           user.empresaId,
+//           departamentoActual
+//         );
+//       } else {
+//         data = await obtenerTareasAsignadasDepartamento(
+//           user.uid,
+//           user.empresaId,
+//           departamentoActual
+//         );
+//       }
+
+//       setTareas(data);
+//     } catch (error) {
+//       console.error("Error al cargar tareas:", error);
+//       Alert.alert("Error", "No se pudieron cargar las tareas");
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   useEffect(() => {
+//     if (departamentoActual) {
+//       cargarTareas();
+//     }
+//   }, [user?.empresaId, departamentoActual, vistaActual]);
+
+//   const cambiarDepartamento = (depto: Departamento) => {
+//     setDeptoSeleccionado(depto.nombre);
+//     setModalDeptosVisible(false);
+//   };
+
+//   const handleCambiarEstado = async (
+//     tareaId: string,
+//     nuevoEstado: EstadoTarea
+//   ) => {
+//     try {
+//       await actualizarEstadoTarea(tareaId, nuevoEstado);
+//       Alert.alert("Éxito", "Estado actualizado");
+//       cargarTareas();
+//     } catch  {
+//       Alert.alert("Error", "No se pudo actualizar el estado");
+//     }
+//   };
+
+//   const handleEliminar = (tareaId: string) => {
+//     Alert.alert(
+//       "Eliminar tarea",
+//       "¿Estás seguro de que deseas eliminar esta tarea?",
+//       [
+//         { text: "Cancelar", style: "cancel" },
+//         {
+//           text: "Eliminar",
+//           style: "destructive",
+//           onPress: async () => {
+//             try {
+//               await eliminarTarea(tareaId);
+//               Alert.alert("Éxito", "Tarea eliminada");
+//               cargarTareas();
+//             } catch {
+//               Alert.alert("Error", "No se pudo eliminar la tarea");
+//             }
+//           },
+//         },
+//       ]
+//     );
+//   };
+
+//   const tareasFiltradas = tareas.filter((t) =>
+//     filtroEstado === "Todas" ? true : t.estado === filtroEstado
+//   );
+
+//   const getPrioridadColor = (prioridad: string) => {
+//     switch (prioridad) {
+//       case "Urgente":
+//         return COLORS.error;
+//       case "Alta":
+//         return COLORS.warning;
+//       case "Media":
+//         return COLORS.primary;
+//       default:
+//         return COLORS.textSecondary;
+//     }
+//   };
+
+//   const getEstadoColor = (estado: EstadoTarea) => {
+//     switch (estado) {
+//       case "Completada":
+//         return COLORS.success;
+//       case "En Progreso":
+//         return COLORS.primary;
+//       case "Cancelada":
+//         return COLORS.error;
+//       default:
+//         return COLORS.textSecondary;
+//     }
+//   };
+
+//   // Vista para usuarios sin departamento
+//   if (!esAdmin && !user?.nombreDepartamento) {
+//     return (
+//       <SafeAreaView style={styles.container}>
+//         <View style={styles.emptyContainer}>
+//           <MaterialIcons
+//             name="assignment"
+//             size={80}
+//             color={COLORS.textSecondary}
+//           />
+//           <Text style={styles.emptyTitle}>Sin departamento</Text>
+//           <Text style={styles.emptyText}>
+//             No tienes un departamento asignado.{"\n"}
+//             Contacta a tu administrador.
+//           </Text>
+//         </View>
+//       </SafeAreaView>
+//     );
+//   }
+
+//   // Vista para admin sin departamentos
+//   if (esAdmin && departamentos.length === 0) {
+//     return (
+//       <SafeAreaView style={styles.container}>
+//         <View style={styles.emptyContainer}>
+//           <MaterialIcons
+//             name="folder-open"
+//             size={80}
+//             color={COLORS.textSecondary}
+//           />
+//           <Text style={styles.emptyTitle}>No hay departamentos</Text>
+//           <Text style={styles.emptyText}>
+//             Aún no se han creado departamentos en esta empresa.{"\n"}
+//             Ve a Gestión de Usuarios para crear uno.
+//           </Text>
+//         </View>
+//       </SafeAreaView>
+//     );
+//   }
+
+//   return (
+//     <SafeAreaView style={styles.container}>
+//       {/* Header */}
+//       <View style={styles.header}>
+//         <TouchableOpacity
+//           style={styles.headerLeft}
+//           onPress={() => esAdmin && setModalDeptosVisible(true)}
+//           disabled={!esAdmin}
+//         >
+//           <MaterialIcons name="assignment" size={24} color={COLORS.primary} />
+//           <View style={{ flex: 1 }}>
+//             <Text style={styles.headerTitle}>Tareas Departamento</Text>
+//             <View style={styles.deptoSelector}>
+//               <Text style={styles.headerSubtitle}>
+//                 {departamentoActual || "Selecciona departamento"}
+//               </Text>
+//               {esAdmin && (
+//                 <MaterialIcons
+//                   name="expand-more"
+//                   size={18}
+//                   color={COLORS.primary}
+//                 />
+//               )}
+//             </View>
+//           </View>
+//         </TouchableOpacity>
+
+//         {puedeCrear && departamentoActual && (
+//           <TouchableOpacity
+//             style={styles.addButton}
+//             onPress={() => navigation.navigate("CrearTarea")}
+//           >
+//             <MaterialIcons name="add" size={24} color="#fff" />
+//           </TouchableOpacity>
+//         )}
+//       </View>
+
+//       {/* Filtros de vista */}
+//       <View style={styles.filterContainer}>
+//         <TouchableOpacity
+//           style={[
+//             styles.filterButton,
+//             vistaActual === "todas" && styles.filterButtonActive,
+//           ]}
+//           onPress={() => setVistaActual("todas")}
+//         >
+//           <Text
+//             style={[
+//               styles.filterButtonText,
+//               vistaActual === "todas" && styles.filterButtonTextActive,
+//             ]}
+//           >
+//             Todas
+//           </Text>
+//         </TouchableOpacity>
+
+//         <TouchableOpacity
+//           style={[
+//             styles.filterButton,
+//             vistaActual === "asignadas" && styles.filterButtonActive,
+//           ]}
+//           onPress={() => setVistaActual("asignadas")}
+//         >
+//           <Text
+//             style={[
+//               styles.filterButtonText,
+//               vistaActual === "asignadas" && styles.filterButtonTextActive,
+//             ]}
+//           >
+//             Mis Tareas
+//           </Text>
+//         </TouchableOpacity>
+//       </View>
+
+//       {/* Filtros de estado */}
+//       <View style={styles.estadoFilterContainer}>
+//         {["Todas", "Pendiente", "En Progreso", "Completada"].map((estado) => (
+//           <TouchableOpacity
+//             key={estado}
+//             style={[
+//               styles.estadoChip,
+//               filtroEstado === estado && styles.estadoChipActive,
+//             ]}
+//             onPress={() => setFiltroEstado(estado as EstadoTarea | "Todas")}
+//           >
+//             <Text
+//               style={[
+//                 styles.estadoChipText,
+//                 filtroEstado === estado && styles.estadoChipTextActive,
+//               ]}
+//             >
+//               {estado}
+//             </Text>
+//           </TouchableOpacity>
+//         ))}
+//       </View>
+
+//       {/* Lista de tareas */}
+//       <FlatList
+//         data={tareasFiltradas}
+//         keyExtractor={(item) => item.id}
+//         refreshControl={
+//           <RefreshControl refreshing={loading} onRefresh={cargarTareas} />
+//         }
+//         contentContainerStyle={styles.listContent}
+//         renderItem={({ item }) => (
+//           <TouchableOpacity
+//             style={styles.tareaCard}
+//             onPress={() =>
+//               navigation.navigate("DetalleTarea", { tareaId: item.id })
+//             }
+//           >
+//             {/* Header de la tarea */}
+//             <View style={styles.tareaHeader}>
+//               <View style={{ flex: 1 }}>
+//                 <Text style={styles.tareaTitle} numberOfLines={2}>
+//                   {item.titulo}
+//                 </Text>
+//                 <Text style={styles.tareaCreador}>
+//                   Por: {item.nombreCreador}
+//                 </Text>
+//               </View>
+
+//               {(item.creadaPor === user?.uid || esAdmin) && (
+//                 <TouchableOpacity
+//                   style={styles.deleteButton}
+//                   onPress={() => handleEliminar(item.id)}
+//                 >
+//                   <MaterialIcons name="delete" size={20} color={COLORS.error} />
+//                 </TouchableOpacity>
+//               )}
+//             </View>
+
+//             {/* Descripción */}
+//             {item.descripcion && (
+//               <Text style={styles.tareaDescripcion} numberOfLines={2}>
+//                 {item.descripcion}
+//               </Text>
+//             )}
+
+//             {/* Asignados */}
+//             <View style={styles.asignadosContainer}>
+//               <MaterialIcons
+//                 name="people"
+//                 size={16}
+//                 color={COLORS.textSecondary}
+//               />
+//               <Text style={styles.asignadosText}>
+//                 {item.nombresAsignados.join(", ")}
+//               </Text>
+//             </View>
+
+//             {/* Badges */}
+//             <View style={styles.badgesContainer}>
+//               <View
+//                 style={[
+//                   styles.badge,
+//                   { backgroundColor: getPrioridadColor(item.prioridad) },
+//                 ]}
+//               >
+//                 <Text style={styles.badgeText}>{item.prioridad}</Text>
+//               </View>
+
+//               <View
+//                 style={[
+//                   styles.badge,
+//                   { backgroundColor: getEstadoColor(item.estado) },
+//                 ]}
+//               >
+//                 <Text style={styles.badgeText}>{item.estado}</Text>
+//               </View>
+
+//               {item.fechaVencimiento && (
+//                 <View style={styles.fechaBadge}>
+//                   <MaterialIcons
+//                     name="event"
+//                     size={14}
+//                     color={COLORS.textSecondary}
+//                   />
+//                   <Text style={styles.fechaText}>
+//                     {new Date(item.fechaVencimiento).toLocaleDateString(
+//                       "es-MX"
+//                     )}
+//                   </Text>
+//                 </View>
+//               )}
+//             </View>
+
+//             {/* Cambiar estado (solo si está asignada al usuario o es admin) */}
+//             {(item.asignadoA.includes(user?.uid || "") || esAdmin) &&
+//               item.estado !== "Completada" && (
+//                 <View style={styles.accionesContainer}>
+//                   {item.estado === "Pendiente" && (
+//                     <TouchableOpacity
+//                       style={styles.accionButton}
+//                       onPress={() =>
+//                         handleCambiarEstado(item.id, "En Progreso")
+//                       }
+//                     >
+//                       <MaterialIcons name="play-arrow" size={16} color="#fff" />
+//                       <Text style={styles.accionButtonText}>Iniciar</Text>
+//                     </TouchableOpacity>
+//                   )}
+
+//                   {item.estado === "En Progreso" && (
+//                     <TouchableOpacity
+//                       style={[
+//                         styles.accionButton,
+//                         { backgroundColor: COLORS.success },
+//                       ]}
+//                       onPress={() => handleCambiarEstado(item.id, "Completada")}
+//                     >
+//                       <MaterialIcons name="check" size={16} color="#fff" />
+//                       <Text style={styles.accionButtonText}>Completar</Text>
+//                     </TouchableOpacity>
+//                   )}
+//                 </View>
+//               )}
+//           </TouchableOpacity>
+//         )}
+//         ListEmptyComponent={
+//           <View style={styles.emptyContainer}>
+//             <MaterialIcons
+//               name="assignment"
+//               size={64}
+//               color={COLORS.textSecondary}
+//             />
+//             <Text style={styles.emptyText}>
+//               No hay tareas en este departamento
+//             </Text>
+//             {puedeCrear && (
+//               <Text style={styles.emptySubtext}>
+//                 Toca el botón + para crear la primera
+//               </Text>
+//             )}
+//           </View>
+//         }
+//       />
+
+//       {/* Modal selector de departamentos */}
+//       <Modal
+//         visible={modalDeptosVisible}
+//         transparent
+//         animationType="slide"
+//         onRequestClose={() => setModalDeptosVisible(false)}
+//       >
+//         <View style={styles.modalOverlay}>
+//           <View style={styles.modalContainer}>
+//             <Text style={styles.modalTitle}>Seleccionar Departamento</Text>
+
+//             <FlatList
+//               data={departamentos}
+//               keyExtractor={(item) => item.id}
+//               renderItem={({ item }) => (
+//                 <TouchableOpacity
+//                   style={[
+//                     styles.deptoItem,
+//                     deptoSeleccionado === item.nombre && styles.deptoItemActive,
+//                   ]}
+//                   onPress={() => cambiarDepartamento(item)}
+//                 >
+//                   <MaterialIcons
+//                     name="folder"
+//                     size={24}
+//                     color={
+//                       deptoSeleccionado === item.nombre
+//                         ? COLORS.primary
+//                         : COLORS.textSecondary
+//                     }
+//                   />
+//                   <Text
+//                     style={[
+//                       styles.deptoItemText,
+//                       deptoSeleccionado === item.nombre &&
+//                         styles.deptoItemTextActive,
+//                     ]}
+//                   >
+//                     {item.nombre}
+//                   </Text>
+//                   {deptoSeleccionado === item.nombre && (
+//                     <MaterialIcons
+//                       name="check"
+//                       size={24}
+//                       color={COLORS.primary}
+//                     />
+//                   )}
+//                 </TouchableOpacity>
+//               )}
+//             />
+
+//             <TouchableOpacity
+//               style={styles.closeButton}
+//               onPress={() => setModalDeptosVisible(false)}
+//             >
+//               <Text style={styles.closeButtonText}>Cerrar</Text>
+//             </TouchableOpacity>
+//           </View>
+//         </View>
+//       </Modal>
+
+//       {/* Footer de navegación */}
+//       <View style={styles.footerContainer}>
+//         <TouchableOpacity
+//           style={styles.iconButton}
+//           onPress={() => navigation.navigate("Home")}
+//         >
+//           <MaterialIcons name="home" size={26} color="#666" />
+//         </TouchableOpacity>
+
+//         <TouchableOpacity
+//           style={styles.iconButton}
+//           onPress={() => navigation.navigate("MuroDpto")}
+//         >
+//           <MaterialIcons name="business" size={26} color="#666" />
+//         </TouchableOpacity>
+
+//         <TouchableOpacity
+//           style={styles.iconButton}
+//           onPress={() => navigation.navigate("TareaDpto")}
+//         >
+//           <MaterialIcons name="assignment" size={26} color={COLORS.primary} />
+//         </TouchableOpacity>
+
+//         <TouchableOpacity
+//           style={styles.iconButton}
+//           onPress={() => navigation.navigate("EventoDpto")}
+//         >
+//           <MaterialIcons name="event" size={26} color="#666" />
+//         </TouchableOpacity>
+//       </View>
+//     </SafeAreaView>
+//   );
+// };
+
+
+
 import { MaterialIcons } from "@expo/vector-icons";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
-  Alert,
   FlatList,
   Modal,
   RefreshControl,
@@ -12,140 +562,39 @@ import {
   View,
 } from "react-native";
 import { useUser } from "../../context/UserContext";
-import {
-  cargarDepartamentos,
-  Departamento,
-} from "../../Services/departamentosService";
-import {
-  actualizarEstadoTarea,
-  eliminarTarea,
-  obtenerTareasAsignadasDepartamento,
-  obtenerTareasDepartamento,
-} from "../../Services/tareasService";
+import { Departamento } from "../../Services/departamentosService";
+import { useTareas } from "../../Hooks/useTareas";
 import { COLORS, FONT_SIZES } from "../../types";
 import { EstadoTarea, Tarea } from "../../types/tareas";
 
 const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
   const { user } = useUser();
-  const [tareas, setTareas] = useState<Tarea[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [filtroEstado, setFiltroEstado] = useState<EstadoTarea | "Todas">(
-    "Todas"
-  );
-  const [vistaActual, setVistaActual] = useState<"todas" | "asignadas">(
-    "todas"
-  );
 
-  // Para administradores
-  const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
-  const [deptoSeleccionado, setDeptoSeleccionado] = useState<string | null>(
-    null
-  );
-  const [modalDeptosVisible, setModalDeptosVisible] = useState(false);
+  const {
+    tareasFiltradas,
+    loading,
 
-  const esAdmin = user?.rol === "Administrador";
-  const esJefe = user?.rol === "Jefe";
-  const puedeCrear = esAdmin || esJefe;
+    filtroEstado,
+    setFiltroEstado,
 
-  const departamentoActual = esAdmin
-    ? deptoSeleccionado
-    : user?.nombreDepartamento;
+    vistaActual,
+    setVistaActual,
 
-  // Cargar departamentos si es admin
-  useEffect(() => {
-    if (esAdmin && user?.empresaId) {
-      cargarDepartamentos(user.empresaId)
-        .then((deptos) => {
-          setDepartamentos(deptos);
-          if (deptos.length > 0 && !deptoSeleccionado) {
-            setDeptoSeleccionado(deptos[0].nombre);
-          }
-        })
-        .catch(() => {
-          Alert.alert("Error", "No se pudieron cargar los departamentos");
-        });
-    }
-  }, [esAdmin, user?.empresaId]);
+    departamentos,
+    deptoSeleccionado,
+    departamentoActual,
 
-  const cargarTareas = async () => {
-    if (!user?.empresaId || !departamentoActual) return;
+    modalDeptosVisible,
+    setModalDeptosVisible,
 
-    try {
-      setLoading(true);
-      let data: Tarea[];
+    esAdmin,
+    puedeCrear,
 
-      if (vistaActual === "todas") {
-        data = await obtenerTareasDepartamento(
-          user.empresaId,
-          departamentoActual
-        );
-      } else {
-        data = await obtenerTareasAsignadasDepartamento(
-          user.uid,
-          user.empresaId,
-          departamentoActual
-        );
-      }
-
-      setTareas(data);
-    } catch (error) {
-      console.error("Error al cargar tareas:", error);
-      Alert.alert("Error", "No se pudieron cargar las tareas");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (departamentoActual) {
-      cargarTareas();
-    }
-  }, [user?.empresaId, departamentoActual, vistaActual]);
-
-  const cambiarDepartamento = (depto: Departamento) => {
-    setDeptoSeleccionado(depto.nombre);
-    setModalDeptosVisible(false);
-  };
-
-  const handleCambiarEstado = async (
-    tareaId: string,
-    nuevoEstado: EstadoTarea
-  ) => {
-    try {
-      await actualizarEstadoTarea(tareaId, nuevoEstado);
-      Alert.alert("Éxito", "Estado actualizado");
-      cargarTareas();
-    } catch (error) {
-      Alert.alert("Error", "No se pudo actualizar el estado");
-    }
-  };
-
-  const handleEliminar = (tareaId: string) => {
-    Alert.alert(
-      "Eliminar tarea",
-      "¿Estás seguro de que deseas eliminar esta tarea?",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Eliminar",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await eliminarTarea(tareaId);
-              Alert.alert("Éxito", "Tarea eliminada");
-              cargarTareas();
-            } catch {
-              Alert.alert("Error", "No se pudo eliminar la tarea");
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const tareasFiltradas = tareas.filter((t) =>
-    filtroEstado === "Todas" ? true : t.estado === filtroEstado
-  );
+    cambiarDepartamento,
+    cambiarEstado,
+    eliminar,
+    refetch,
+  } = useTareas(user, { modo: "departamento" });
 
   const getPrioridadColor = (prioridad: string) => {
     switch (prioridad) {
@@ -173,7 +622,6 @@ const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
     }
   };
 
-  // Vista para usuarios sin departamento
   if (!esAdmin && !user?.nombreDepartamento) {
     return (
       <SafeAreaView style={styles.container}>
@@ -193,7 +641,6 @@ const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
     );
   }
 
-  // Vista para admin sin departamentos
   if (esAdmin && departamentos.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
@@ -213,9 +660,113 @@ const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
     );
   }
 
+  const renderTarea = ({ item }: { item: Tarea }) => (
+    <TouchableOpacity
+      style={styles.tareaCard}
+      onPress={() =>
+        navigation.navigate("DetalleTarea", { tareaId: item.id })
+      }
+    >
+      <View style={styles.tareaHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.tareaTitle} numberOfLines={2}>
+            {item.titulo}
+          </Text>
+          <Text style={styles.tareaCreador}>Por: {item.nombreCreador}</Text>
+        </View>
+
+        {(item.creadaPor === user?.uid || esAdmin) && (
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => eliminar(item.id)}
+          >
+            <MaterialIcons name="delete" size={20} color={COLORS.error} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {item.descripcion && (
+        <Text style={styles.tareaDescripcion} numberOfLines={2}>
+          {item.descripcion}
+        </Text>
+      )}
+
+      <View style={styles.asignadosContainer}>
+        <MaterialIcons
+          name="people"
+          size={16}
+          color={COLORS.textSecondary}
+        />
+        <Text style={styles.asignadosText}>
+          {item.nombresAsignados?.join(", ") || "Sin asignar"}
+        </Text>
+      </View>
+
+      <View style={styles.badgesContainer}>
+        <View
+          style={[
+            styles.badge,
+            { backgroundColor: getPrioridadColor(item.prioridad) },
+          ]}
+        >
+          <Text style={styles.badgeText}>{item.prioridad}</Text>
+        </View>
+
+        <View
+          style={[
+            styles.badge,
+            { backgroundColor: getEstadoColor(item.estado) },
+          ]}
+        >
+          <Text style={styles.badgeText}>{item.estado}</Text>
+        </View>
+
+        {item.fechaVencimiento && (
+          <View style={styles.fechaBadge}>
+            <MaterialIcons
+              name="event"
+              size={14}
+              color={COLORS.textSecondary}
+            />
+            <Text style={styles.fechaText}>
+              {new Date(item.fechaVencimiento).toLocaleDateString("es-MX")}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {(item.asignadoA.includes(user?.uid || "") || esAdmin) &&
+        item.estado !== "Completada" && (
+          <View style={styles.accionesContainer}>
+            {item.estado === "Pendiente" && (
+              <TouchableOpacity
+                style={styles.accionButton}
+                onPress={() => cambiarEstado(item.id, "En Progreso")}
+              >
+                <MaterialIcons name="play-arrow" size={16} color="#fff" />
+                <Text style={styles.accionButtonText}>Iniciar</Text>
+              </TouchableOpacity>
+            )}
+
+            {item.estado === "En Progreso" && (
+              <TouchableOpacity
+                style={[
+                  styles.accionButton,
+                  { backgroundColor: COLORS.success },
+                ]}
+                onPress={() => cambiarEstado(item.id, "Completada")}
+              >
+                <MaterialIcons name="check" size={16} color="#fff" />
+                <Text style={styles.accionButtonText}>Completar</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+    </TouchableOpacity>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.headerLeft}
@@ -223,12 +774,15 @@ const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
           disabled={!esAdmin}
         >
           <MaterialIcons name="assignment" size={24} color={COLORS.primary} />
+
           <View style={{ flex: 1 }}>
             <Text style={styles.headerTitle}>Tareas Departamento</Text>
+
             <View style={styles.deptoSelector}>
               <Text style={styles.headerSubtitle}>
                 {departamentoActual || "Selecciona departamento"}
               </Text>
+
               {esAdmin && (
                 <MaterialIcons
                   name="expand-more"
@@ -250,7 +804,6 @@ const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
         )}
       </View>
 
-      {/* Filtros de vista */}
       <View style={styles.filterContainer}>
         <TouchableOpacity
           style={[
@@ -287,7 +840,6 @@ const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
         </TouchableOpacity>
       </View>
 
-      {/* Filtros de estado */}
       <View style={styles.estadoFilterContainer}>
         {["Todas", "Pendiente", "En Progreso", "Completada"].map((estado) => (
           <TouchableOpacity
@@ -310,129 +862,14 @@ const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
         ))}
       </View>
 
-      {/* Lista de tareas */}
       <FlatList
         data={tareasFiltradas}
         keyExtractor={(item) => item.id}
+        renderItem={renderTarea}
         refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={cargarTareas} />
+          <RefreshControl refreshing={loading} onRefresh={refetch} />
         }
         contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.tareaCard}
-            onPress={() =>
-              navigation.navigate("DetalleTarea", { tareaId: item.id })
-            }
-          >
-            {/* Header de la tarea */}
-            <View style={styles.tareaHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.tareaTitle} numberOfLines={2}>
-                  {item.titulo}
-                </Text>
-                <Text style={styles.tareaCreador}>
-                  Por: {item.nombreCreador}
-                </Text>
-              </View>
-
-              {(item.creadaPor === user?.uid || esAdmin) && (
-                <TouchableOpacity
-                  style={styles.deleteButton}
-                  onPress={() => handleEliminar(item.id)}
-                >
-                  <MaterialIcons name="delete" size={20} color={COLORS.error} />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Descripción */}
-            {item.descripcion && (
-              <Text style={styles.tareaDescripcion} numberOfLines={2}>
-                {item.descripcion}
-              </Text>
-            )}
-
-            {/* Asignados */}
-            <View style={styles.asignadosContainer}>
-              <MaterialIcons
-                name="people"
-                size={16}
-                color={COLORS.textSecondary}
-              />
-              <Text style={styles.asignadosText}>
-                {item.nombresAsignados.join(", ")}
-              </Text>
-            </View>
-
-            {/* Badges */}
-            <View style={styles.badgesContainer}>
-              <View
-                style={[
-                  styles.badge,
-                  { backgroundColor: getPrioridadColor(item.prioridad) },
-                ]}
-              >
-                <Text style={styles.badgeText}>{item.prioridad}</Text>
-              </View>
-
-              <View
-                style={[
-                  styles.badge,
-                  { backgroundColor: getEstadoColor(item.estado) },
-                ]}
-              >
-                <Text style={styles.badgeText}>{item.estado}</Text>
-              </View>
-
-              {item.fechaVencimiento && (
-                <View style={styles.fechaBadge}>
-                  <MaterialIcons
-                    name="event"
-                    size={14}
-                    color={COLORS.textSecondary}
-                  />
-                  <Text style={styles.fechaText}>
-                    {new Date(item.fechaVencimiento).toLocaleDateString(
-                      "es-MX"
-                    )}
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            {/* Cambiar estado (solo si está asignada al usuario o es admin) */}
-            {(item.asignadoA.includes(user?.uid || "") || esAdmin) &&
-              item.estado !== "Completada" && (
-                <View style={styles.accionesContainer}>
-                  {item.estado === "Pendiente" && (
-                    <TouchableOpacity
-                      style={styles.accionButton}
-                      onPress={() =>
-                        handleCambiarEstado(item.id, "En Progreso")
-                      }
-                    >
-                      <MaterialIcons name="play-arrow" size={16} color="#fff" />
-                      <Text style={styles.accionButtonText}>Iniciar</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  {item.estado === "En Progreso" && (
-                    <TouchableOpacity
-                      style={[
-                        styles.accionButton,
-                        { backgroundColor: COLORS.success },
-                      ]}
-                      onPress={() => handleCambiarEstado(item.id, "Completada")}
-                    >
-                      <MaterialIcons name="check" size={16} color="#fff" />
-                      <Text style={styles.accionButtonText}>Completar</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              )}
-          </TouchableOpacity>
-        )}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <MaterialIcons
@@ -452,7 +889,6 @@ const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
         }
       />
 
-      {/* Modal selector de departamentos */}
       <Modal
         visible={modalDeptosVisible}
         transparent
@@ -466,7 +902,7 @@ const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
             <FlatList
               data={departamentos}
               keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
+              renderItem={({ item }: { item: Departamento }) => (
                 <TouchableOpacity
                   style={[
                     styles.deptoItem,
@@ -483,6 +919,7 @@ const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
                         : COLORS.textSecondary
                     }
                   />
+
                   <Text
                     style={[
                       styles.deptoItemText,
@@ -492,6 +929,7 @@ const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
                   >
                     {item.nombre}
                   </Text>
+
                   {deptoSeleccionado === item.nombre && (
                     <MaterialIcons
                       name="check"
@@ -513,7 +951,6 @@ const TareasDeptoScreen: React.FC = ({ navigation }: any) => {
         </View>
       </Modal>
 
-      {/* Footer de navegación */}
       <View style={styles.footerContainer}>
         <TouchableOpacity
           style={styles.iconButton}

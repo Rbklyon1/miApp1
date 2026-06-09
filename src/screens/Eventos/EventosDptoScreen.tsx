@@ -103,7 +103,6 @@ const EventosDeptoScreen: React.FC = ({ navigation }: any) => {
     return new Date(evento.fechaInicio) < new Date();
   };
 
-  // UI pura: condiciones de render
   if (!esAdmin && !user?.nombreDepartamento) {
     return (
       <SafeAreaView style={styles.container}>

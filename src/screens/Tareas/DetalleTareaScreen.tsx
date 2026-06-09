@@ -1,10 +1,7 @@
-
 import { MaterialIcons } from "@expo/vector-icons";
-import * as Linking from "expo-linking";
-import { doc, getDoc } from "firebase/firestore";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
-  Alert,
+  ActivityIndicator,
   Modal,
   ScrollView,
   StyleSheet,
@@ -14,207 +11,58 @@ import {
   View,
 } from "react-native";
 import { useUser } from "../../context/UserContext";
-import { db } from "../../Services/firebaseConfig";
-import {
-  actualizarEstadoTarea,
-  agregarComentario,
-  agregarEnlaceAdjunto,
-  eliminarAdjunto,
-  eliminarTarea,
-} from "../../Services/tareasService";
+import { useDetalleTarea } from "../../Hooks/useDetalleTarea";
 import { COLORS, FONT_SIZES } from "../../types";
-import { Adjunto, EstadoTarea, Tarea } from "../../types/tareas";
+import { EstadoTarea } from "../../types/tareas";
 
 const DetalleTareaScreen: React.FC = ({ route, navigation }: any) => {
   const { tareaId } = route.params;
   const { user } = useUser();
 
-  const [tarea, setTarea] = useState<Tarea | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [comentario, setComentario] = useState("");
+  const {
+    tarea,
+    loading,
 
-  // ── Modal agregar enlace ──
-  const [modalEnlaceVisible, setModalEnlaceVisible] = useState(false);
-  const [enlaceNombre, setEnlaceNombre] = useState("");
-  const [enlaceUrl, setEnlaceUrl] = useState("");
-  const [guardandoEnlace, setGuardandoEnlace] = useState(false);
-  useEffect(() => {
-    cargarTarea();
-  }, [tareaId]);
+    comentario,
+    setComentario,
 
-  const cargarTarea = async () => {
-    try {
-      const tareaRef = doc(db, "Tareas", tareaId);
-      const tareaSnap = await getDoc(tareaRef);
+    modalEnlaceVisible,
+    setModalEnlaceVisible,
+    enlaceNombre,
+    setEnlaceNombre,
+    enlaceUrl,
+    setEnlaceUrl,
+    guardandoEnlace,
 
-      if (tareaSnap.exists()) {
-        setTarea({ id: tareaSnap.id, ...tareaSnap.data() } as Tarea);
-      } else {
-        Alert.alert("Error", "Tarea no encontrada");
-        navigation.goBack();
-      }
-    } catch {
-      Alert.alert("Error", "No se pudo cargar la tarea");
-    } finally {
-      setLoading(false);
-    }
-  };
+    puedeEditar,
+    esAsignado,
+    estados,
 
-  const handleCambiarEstado = (nuevoEstado: EstadoTarea) => {
-    Alert.alert("Cambiar estado", `¿Cambiar estado a "${nuevoEstado}"?`, [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Confirmar",
-        onPress: async () => {
-          try {
-            await actualizarEstadoTarea(tareaId, nuevoEstado);
-            await cargarTarea();
-            Alert.alert("Éxito", "Estado actualizado");
-          } catch {
-            Alert.alert("Error", "No se pudo actualizar el estado");
-          }
-        },
-      },
-    ]);
-  };
+    cambiarEstado,
+    agregarComentarioTarea,
+    abrirModalEnlace,
+    guardarEnlace,
+    eliminarAdjuntoTarea,
+    abrirEnlace,
+    eliminar,
+  } = useDetalleTarea(tareaId, user, navigation);
 
-  const handleAgregarComentario = async () => {
-    if (!comentario.trim()) return;
-
-    try {
-      await agregarComentario(tareaId, {
-        texto: comentario.trim(),
-        autorUid: user?.uid!,
-        autorNombre: user?.nombre!,
-      });
-
-      setComentario("");
-      await cargarTarea();
-      Alert.alert("Éxito", "Comentario agregado");
-    } catch {
-      Alert.alert("Error", "No se pudo agregar el comentario");
-    }
-  };
-
-  const handleEliminar = () => {
-    Alert.alert(
-      "Eliminar tarea",
-      "¿Estás seguro? Esta acción no se puede deshacer.",
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Eliminar",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await eliminarTarea(tareaId);
-              Alert.alert("Éxito", "Tarea eliminada", [
-                { text: "OK", onPress: () => navigation.goBack() },
-              ]);
-            } catch {
-              Alert.alert("Error", "No se pudo eliminar la tarea");
-            }
-          },
-        },
-      ]
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
     );
-  };
-
-  // ─── Handlers de adjuntos (enlaces) ────────────────────────────────────────
-
-  const handleAbrirModalEnlace = () => {
-    setEnlaceNombre("");
-    setEnlaceUrl("");
-    setModalEnlaceVisible(true);
-  };
-
-  const handleGuardarEnlace = async () => {
-    if (!enlaceNombre.trim()) {
-      Alert.alert("Campo requerido", "Escribe un nombre para el enlace.");
-      return;
-    }
-    if (!enlaceUrl.trim()) {
-      Alert.alert("Campo requerido", "Pega la URL del archivo.");
-      return;
-    }
-    // Validación básica de URL
-    if (!enlaceUrl.trim().startsWith("http")) {
-      Alert.alert("URL inválida", "La URL debe comenzar con http:// o https://");
-      return;
-    }
-
-    setGuardandoEnlace(true);
-    try {
-      await agregarEnlaceAdjunto(
-        tareaId,
-        { nombre: enlaceNombre, url: enlaceUrl },
-        user!.uid,
-        user!.nombre
-      );
-      setModalEnlaceVisible(false);
-      await cargarTarea();
-      Alert.alert("Éxito", "Enlace agregado correctamente");
-    } catch {
-      Alert.alert("Error", "No se pudo guardar el enlace");
-    } finally {
-      setGuardandoEnlace(false);
-    }
-  };
-
-  const handleEliminarAdjunto = (adjunto: Adjunto) => {
-    const puedeEliminar =
-      adjunto.subidoPor === user?.uid || user?.rol === "Administrador";
-
-    if (!puedeEliminar) {
-      Alert.alert("Sin permiso", "Solo quien agregó el enlace o un Administrador puede eliminarlo.");
-      return;
-    }
-
-    Alert.alert(
-      "Eliminar enlace",
-      `¿Eliminar "${adjunto.nombre}"?`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Eliminar",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await eliminarAdjunto(tareaId, adjunto.id);
-              await cargarTarea();
-            } catch {
-              Alert.alert("Error", "No se pudo eliminar el enlace");
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleAbrirEnlace = (url: string) => {
-    Linking.openURL(url).catch(() =>
-      Alert.alert("Error", "No se pudo abrir el enlace")
-    );
-  };
+  }
 
   if (!tarea) return null;
-
-  const puedeEditar =
-    user?.uid === tarea.creadaPor || user?.rol === "Administrador";
-  const esAsignado = tarea.asignadoA.includes(user?.uid!);
-
-  const estados: EstadoTarea[] = [
-    "Pendiente",
-    "En Progreso",
-    "Completada",
-    "Cancelada",
-  ];
 
   return (
     <ScrollView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.titulo}>{tarea.titulo}</Text>
+
         <View style={styles.badges}>
           <View
             style={[
@@ -224,6 +72,7 @@ const DetalleTareaScreen: React.FC = ({ route, navigation }: any) => {
           >
             <Text style={styles.badgeText}>{tarea.prioridad}</Text>
           </View>
+
           <View
             style={[
               styles.estadoBadge,
@@ -257,7 +106,7 @@ const DetalleTareaScreen: React.FC = ({ route, navigation }: any) => {
           <MaterialIcons name="group" size={20} color={COLORS.primary} />
           <Text style={styles.infoLabel}>Asignado a:</Text>
           <Text style={styles.infoValue}>
-            {tarea.nombresAsignados?.join(", ")}
+            {tarea.nombresAsignados?.join(", ") || "Sin asignar"}
           </Text>
         </View>
 
@@ -288,8 +137,9 @@ const DetalleTareaScreen: React.FC = ({ route, navigation }: any) => {
       {esAsignado && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Cambiar estado</Text>
+
           <View style={styles.estadosContainer}>
-            {estados.map((estado) => (
+            {estados.map((estado: EstadoTarea) => (
               <TouchableOpacity
                 key={estado}
                 style={[
@@ -297,7 +147,7 @@ const DetalleTareaScreen: React.FC = ({ route, navigation }: any) => {
                   { backgroundColor: getEstadoColor(estado) },
                   tarea.estado === estado && styles.estadoButtonActive,
                 ]}
-                onPress={() => handleCambiarEstado(estado)}
+                onPress={() => cambiarEstado(estado)}
               >
                 <Text style={styles.estadoButtonText}>{estado}</Text>
               </TouchableOpacity>
@@ -306,46 +156,55 @@ const DetalleTareaScreen: React.FC = ({ route, navigation }: any) => {
         </View>
       )}
 
-      {/* ── Adjuntos / Entregables ── */}
+      {/* Adjuntos */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>
             Adjuntos ({tarea.adjuntos?.length || 0})
           </Text>
-          <TouchableOpacity
-            style={styles.subirButton}
-            onPress={handleAbrirModalEnlace}
-          >
+
+          <TouchableOpacity style={styles.subirButton} onPress={abrirModalEnlace}>
             <MaterialIcons name="add-link" size={18} color="#fff" />
             <Text style={styles.subirButtonText}>Agregar enlace</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Lista de adjuntos */}
         {tarea.adjuntos && tarea.adjuntos.length > 0 ? (
           tarea.adjuntos.map((adj) => (
             <View key={adj.id} style={styles.adjuntoCard}>
               <TouchableOpacity
                 style={styles.adjuntoInfo}
-                onPress={() => handleAbrirEnlace(adj.url)}
+                onPress={() => abrirEnlace(adj.url)}
               >
                 <MaterialIcons name="link" size={26} color={COLORS.primary} />
+
                 <View style={styles.adjuntoTextos}>
                   <Text style={styles.adjuntoNombre} numberOfLines={1}>
                     {adj.nombre}
                   </Text>
+
                   <Text style={styles.adjuntoMeta}>
-                    {adj.nombreSubidor} · {new Date(adj.fechaSubida).toLocaleDateString("es-ES")}
+                    {adj.nombreSubidor} ·{" "}
+                    {new Date(adj.fechaSubida).toLocaleDateString("es-ES")}
                   </Text>
                 </View>
-                <MaterialIcons name="open-in-new" size={18} color={COLORS.textSecondary} />
+
+                <MaterialIcons
+                  name="open-in-new"
+                  size={18}
+                  color={COLORS.textSecondary}
+                />
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.adjuntoEliminar}
-                onPress={() => handleEliminarAdjunto(adj)}
+                onPress={() => eliminarAdjuntoTarea(adj)}
               >
-                <MaterialIcons name="delete-outline" size={22} color={COLORS.error} />
+                <MaterialIcons
+                  name="delete-outline"
+                  size={22}
+                  color={COLORS.error}
+                />
               </TouchableOpacity>
             </View>
           ))
@@ -367,6 +226,7 @@ const DetalleTareaScreen: React.FC = ({ route, navigation }: any) => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <Text style={styles.modalTitulo}>Agregar enlace</Text>
+
             <Text style={styles.modalSubtitulo}>
               Pega un enlace de Google Drive, Dropbox, OneDrive u otro servicio.
             </Text>
@@ -405,7 +265,7 @@ const DetalleTareaScreen: React.FC = ({ route, navigation }: any) => {
                   styles.modalBotonGuardar,
                   guardandoEnlace && { opacity: 0.6 },
                 ]}
-                onPress={handleGuardarEnlace}
+                onPress={guardarEnlace}
                 disabled={guardandoEnlace}
               >
                 <Text style={styles.modalBotonGuardarText}>
@@ -431,11 +291,11 @@ const DetalleTareaScreen: React.FC = ({ route, navigation }: any) => {
                 {new Date(com.fecha).toLocaleDateString("es-ES")}
               </Text>
             </View>
+
             <Text style={styles.comentarioTexto}>{com.texto}</Text>
           </View>
         ))}
 
-        {/* Agregar comentario */}
         <View style={styles.nuevoComentario}>
           <TextInput
             style={styles.comentarioInput}
@@ -444,9 +304,10 @@ const DetalleTareaScreen: React.FC = ({ route, navigation }: any) => {
             onChangeText={setComentario}
             multiline
           />
+
           <TouchableOpacity
             style={styles.enviarButton}
-            onPress={handleAgregarComentario}
+            onPress={agregarComentarioTarea}
           >
             <MaterialIcons name="send" size={24} color="#fff" />
           </TouchableOpacity>
@@ -456,10 +317,7 @@ const DetalleTareaScreen: React.FC = ({ route, navigation }: any) => {
       {/* Acciones de admin */}
       {puedeEditar && (
         <View style={styles.section}>
-          <TouchableOpacity
-            style={styles.eliminarButton}
-            onPress={handleEliminar}
-          >
+          <TouchableOpacity style={styles.eliminarButton} onPress={eliminar}>
             <MaterialIcons name="delete" size={22} color="#fff" />
             <Text style={styles.eliminarText}>Eliminar tarea</Text>
           </TouchableOpacity>
@@ -499,33 +357,6 @@ const getEstadoColor = (estado: EstadoTarea) => {
   }
 };
 
-/** Devuelve el nombre del ícono de MaterialIcons según el MIME type */
-const getIconoTipoArchivo = (mimeType: string): keyof typeof MaterialIcons.glyphMap => {
-  if (mimeType.startsWith("image/")) return "image";
-  if (mimeType === "application/pdf") return "picture-as-pdf";
-  if (
-    mimeType === "application/msword" ||
-    mimeType ===
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-  )
-    return "description";
-  if (
-    mimeType === "application/vnd.ms-excel" ||
-    mimeType ===
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-  )
-    return "table-chart";
-  return "insert-drive-file";
-};
-
-/** Formatea bytes a KB / MB de forma legible */
-const formatearTamanio = (bytes: number): string => {
-  if (bytes === 0) return "0 B";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -535,6 +366,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: COLORS.background,
   },
   header: {
     backgroundColor: COLORS.surface,
@@ -570,6 +402,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     marginTop: 12,
     padding: 20,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+    gap: 10,
   },
   sectionTitle: {
     fontSize: FONT_SIZES.large,
@@ -618,6 +457,62 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontWeight: "bold",
     fontSize: FONT_SIZES.small,
+  },
+  subirButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.primary,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 6,
+  },
+  subirButtonText: {
+    color: "#fff",
+    fontSize: FONT_SIZES.small,
+    fontWeight: "bold",
+  },
+  adjuntoCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f9f9f9",
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#ebebeb",
+  },
+  adjuntoInfo: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  adjuntoTextos: {
+    flex: 1,
+  },
+  adjuntoNombre: {
+    fontSize: FONT_SIZES.small,
+    fontWeight: "600",
+    color: COLORS.text,
+  },
+  adjuntoMeta: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  adjuntoEliminar: {
+    padding: 6,
+  },
+  adjuntosVacio: {
+    alignItems: "center",
+    paddingVertical: 20,
+    gap: 6,
+  },
+  adjuntosVacioText: {
+    fontSize: FONT_SIZES.small,
+    color: COLORS.textSecondary,
+    fontStyle: "italic",
   },
   comentarioCard: {
     backgroundColor: "#f5f5f5",
@@ -680,72 +575,6 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.medium,
     fontWeight: "bold",
   },
-
-  // ── Adjuntos ──────────────────────────────────────────────────────────────
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  subirButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.primary,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    gap: 6,
-  },
-  subirButtonText: {
-    color: "#fff",
-    fontSize: FONT_SIZES.small,
-    fontWeight: "bold",
-  },
-  adjuntoCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f9f9f9",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: "#ebebeb",
-  },
-  adjuntoInfo: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  adjuntoTextos: {
-    flex: 1,
-  },
-  adjuntoNombre: {
-    fontSize: FONT_SIZES.small,
-    fontWeight: "600",
-    color: COLORS.text,
-  },
-  adjuntoMeta: {
-    fontSize: 11,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  adjuntoEliminar: {
-    padding: 6,
-  },
-  adjuntosVacio: {
-    alignItems: "center",
-    paddingVertical: 20,
-    gap: 6,
-  },
-  adjuntosVacioText: {
-    fontSize: FONT_SIZES.small,
-    color: COLORS.textSecondary,
-    fontStyle: "italic",
-  },
-
-  // ── Modal enlace ──────────────────────────────────────────────────────────
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",

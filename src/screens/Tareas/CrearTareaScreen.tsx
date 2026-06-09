@@ -1,7 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
-  Alert,
   Modal,
   ScrollView,
   StyleSheet,
@@ -10,195 +9,50 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-// DateTimePicker removido 
 import { useUser } from "../../context/UserContext";
-import { obtenerUsuariosDeEmpresa, obtenerUsuariosPorDepartamento  } from "../../Services/empresaService";
-import { crearTarea } from "../../Services/tareasService";
 import { COLORS, FONT_SIZES } from "../../types/index";
 import { PrioridadTarea } from "../../types/tareas";
-import { cargarDepartamentos, Departamento} from "../../Services/departamentosService";
+import { useCrearTarea } from "../../Hooks/useCrearTarea";
 
 const CrearTareaScreen: React.FC = ({ navigation }: any) => {
   const { user } = useUser();
 
-  // Estados del formulario
-  const [titulo, setTitulo] = useState("");
-  const [descripcion, setDescripcion] = useState("");
-  const [prioridad, setPrioridad] = useState<PrioridadTarea>("Media");
-  const [fechaVencimiento, setFechaVencimiento] = useState<Date | undefined>();
-  const [mostrarModalFecha, setMostrarModalFecha] = useState(false);
+const {
+  titulo,
+  setTitulo,
+  descripcion,
+  setDescripcion,
+  prioridad,
+  setPrioridad,
+  fechaVencimiento,
+  mostrarModalFecha,
+  setMostrarModalFecha,
 
-  // Estados para el selector de fecha manual
-  const [diaSeleccionado, setDiaSeleccionado] = useState(new Date().getDate());
-  const [mesSeleccionado, setMesSeleccionado] = useState(new Date().getMonth());
-  const [anioSeleccionado, setAnioSeleccionado] = useState(
-    new Date().getFullYear()
-  );
+  diaSeleccionado,
+  setDiaSeleccionado,
+  mesSeleccionado,
+  setMesSeleccionado,
+  anioSeleccionado,
+  setAnioSeleccionado,
 
-  // Lista de usuarios disponibles
-  const [usuariosDisponibles, setUsuariosDisponibles] = useState<any[]>([]);
-  const [usuariosSeleccionados, setUsuariosSeleccionados] = useState<string[]>(
-    []
-  );
+  usuariosDisponibles,
+  usuariosSeleccionados,
+  toggleUsuario,
 
-  //Lista de departamentos disponibles
-const [modoAsignacion, setModoAsignacion] = useState<"usuarios" | "departamento">("usuarios");
-const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
-const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState<string>("");
+  modoAsignacion,
+  setModoAsignacion,
+  departamentos,
+  departamentoSeleccionado,
+  setDepartamentoSeleccionado,
 
-  const [isLoading, setIsLoading] = useState(false);
-
-  //cargar departamentos de la empesa
-  useEffect(() => {
-  if (user?.rol === "Administrador" && user?.empresaId) {
-    cargarDepartamentos(user.empresaId)
-      .then((deptos) => {
-        setDepartamentos(deptos);
-      })
-      .catch(() => {
-        Alert.alert("Error", "No se pudieron cargar los departamentos");
-      });
-  }
-}, [user?.rol, user?.empresaId]);
-
-  // Cargar usuarios de la empresa
-  useEffect(() => {
-    if (user?.empresaId) {
-      obtenerUsuariosDeEmpresa(user.empresaId)
-        .then((usuarios) => {
-          // Si es Jefe, filtrar Administradores
-          if (user.rol === "Jefe") {
-            const usuariosFiltrados = usuarios.filter(
-              (u) => u.rol !== "Administrador"
-            );
-            setUsuariosDisponibles(usuariosFiltrados);
-          } else {
-            setUsuariosDisponibles(usuarios);
-          }
-        })
-        .catch(() =>
-          Alert.alert("Error", "No se pudieron cargar los usuarios")
-        );
-    }
-  }, [user?.empresaId, user?.rol]);
-
-  const prioridades: PrioridadTarea[] = ["Baja", "Media", "Alta", "Urgente"];
-
-  const toggleUsuario = (uid: string) => {
-    setUsuariosSeleccionados((prev) =>
-      prev.includes(uid) ? prev.filter((id) => id !== uid) : [...prev, uid]
-    );
-  };
-
-  const confirmarFecha = () => {
-    const nuevaFecha = new Date(
-      anioSeleccionado,
-      mesSeleccionado,
-      diaSeleccionado
-    );
-    setFechaVencimiento(nuevaFecha);
-    setMostrarModalFecha(false);
-  };
-
-  const limpiarFecha = () => {
-    setFechaVencimiento(undefined);
-    setMostrarModalFecha(false);
-  };
-
-  const meses = [
-    "Enero",
-    "Febrero",
-    "Marzo",
-    "Abril",
-    "Mayo",
-    "Junio",
-    "Julio",
-    "Agosto",
-    "Septiembre",
-    "Octubre",
-    "Noviembre",
-    "Diciembre",
-  ];
-
-  const obtenerDiasDelMes = (mes: number, anio: number) => {
-    return new Date(anio, mes + 1, 0).getDate();
-  };
-
-
- const handleCrearTarea = async () => {
-  if (!titulo.trim()) {
-    Alert.alert("Error", "El título es obligatorio");
-    return;
-  }
-
-  let uidsFinales: string[] = [];
-  let nombresAsignados: string[] = [];
-  let departamentoFinal: string | null = null;
-
-  if (user?.rol === "Administrador" && modoAsignacion === "departamento") {
-    if (!departamentoSeleccionado) {
-      Alert.alert("Error", "Debes seleccionar un departamento");
-      return;
-    }
-
-    const usuariosDepto = await obtenerUsuariosPorDepartamento(
-      user?.empresaId!,
-      departamentoSeleccionado
-    );
-
-    console.log(" Departamento seleccionado:", departamentoSeleccionado);
-    console.log(" Usuarios encontrados:", usuariosDepto);
-
-    if (usuariosDepto.length === 0) {
-      Alert.alert("Error", "No hay usuarios asignados a ese departamento");
-      return;
-    }
-
-    uidsFinales = usuariosDepto.map((u) => u.uid);
-    departamentoFinal = departamentoSeleccionado;
-  } else {
-    if (usuariosSeleccionados.length === 0) {
-      Alert.alert("Error", "Debes asignar la tarea a al menos un usuario");
-      return;
-    }
-
-    uidsFinales = usuariosSeleccionados;
-    nombresAsignados = usuariosDisponibles
-      .filter((u) => usuariosSeleccionados.includes(u.uid))
-      .map((u) => u.nombre);
-  }
-
-  setIsLoading(true);
-  try {
-    await crearTarea(
-      {
-        titulo,
-        descripcion,
-        prioridad,
-        fechaVencimiento,
-        asignadoA: uidsFinales,
-        tipoAsignacion: user?.rol === "Administrador" ? modoAsignacion : "usuarios",
-        departamentoAsignado: departamentoFinal,
-      },
-      user?.uid!,
-      user?.nombre!,
-      user?.empresaId!,
-      user?.empresaNombre!,
-      nombresAsignados,
-      user?.rol
-    );
-
-    Alert.alert("Éxito", "Tarea creada correctamente", [
-      { text: "OK", onPress: () => navigation.goBack() },
-    ]);
-  } catch (error: any) {
-    console.error("Error:", error);
-    Alert.alert("Error", error.message || "No se pudo crear la tarea");
-  } finally {
-    setIsLoading(false);
-  }
-};
-
+  isLoading,
+  prioridades,
+  meses,
+  obtenerDiasDelMes,
+  confirmarFecha,
+  limpiarFecha,
+  handleCrearTarea,
+} = useCrearTarea(user, navigation);
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.sectionTitle}>Información de la tarea</Text>
