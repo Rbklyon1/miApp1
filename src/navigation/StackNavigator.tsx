@@ -37,7 +37,7 @@ import HomeScreen from "../screens/home/HomeScreen";
 import MuroDepartamentoScreen from "../screens/muro/MuroDptoScreen";
 import ProfileScreen from "../screens/profile/ProfileScreen";
 import CrearTareaScreen from "../screens/Tareas/CrearTareaScreen";
-import DetalleTareaScreen from "../screens/Tareas/detalleTareaScreen";
+import DetalleTareaScreen from "../screens/Tareas/DetalleTareaScreen";
 import TareasDeptoScreen from "../screens/Tareas/TareasDptoScreen";
 import TareasScreen from "../screens/Tareas/TareasScreen";
 import EditarEventoScreen from "../screens/Eventos/EditarEventosScreen";

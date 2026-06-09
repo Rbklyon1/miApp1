@@ -1,43 +1,42 @@
-
-
-import { offlineService } from './OfflineService';
-import { db } from "./firebaseConfig";
+import NetInfo from "@react-native-community/netinfo";
 import {
-  collection,
   addDoc,
-  getDocs,
-  getDoc,
-  doc,
-  updateDoc,
+  collection,
   deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
   query,
+  updateDoc,
   where,
 } from "firebase/firestore";
-import { Tarea, TareaFormData, EstadoTarea, Adjunto } from "../types/tareas";
-import NetInfo from '@react-native-community/netinfo';
-
+import { Adjunto, EstadoTarea, Tarea, TareaFormData } from "../types/tareas";
+import { db } from "./firebaseConfig";
+import { offlineService } from "./sqlite/OfflineService";
 
 /**
  * Obtener tareas de una empresa
  */
 export async function obtenerTareasDeEmpresa(
-  empresaId: string
+  empresaId: string,
 ): Promise<Tarea[]> {
   try {
     const q = query(
       collection(db, "Tareas"),
-      where("empresaId", "==", empresaId)
+      where("empresaId", "==", empresaId),
     );
-    
+
     const snapshot = await getDocs(q);
     const tareas = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     })) as Tarea[];
-    
+
     // Ordenar en el cliente
-    return tareas.sort((a, b) => 
-      new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
+    return tareas.sort(
+      (a, b) =>
+        new Date(b.fechaCreacion).getTime() -
+        new Date(a.fechaCreacion).getTime(),
     );
   } catch (error: any) {
     console.error("❌ Error al obtener tareas:", error);
@@ -52,24 +51,26 @@ export async function obtenerTareasDeEmpresa(
  */
 export async function obtenerTareasAsignadas(
   uid: string,
-  empresaId: string
+  empresaId: string,
 ): Promise<Tarea[]> {
   try {
     const q = query(
       collection(db, "Tareas"),
       where("empresaId", "==", empresaId),
-      where("asignadoA", "array-contains", uid)
+      where("asignadoA", "array-contains", uid),
     );
-    
+
     const snapshot = await getDocs(q);
     const tareas = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     })) as Tarea[];
-    
+
     // Ordenar en el cliente
-    return tareas.sort((a, b) => 
-      new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
+    return tareas.sort(
+      (a, b) =>
+        new Date(b.fechaCreacion).getTime() -
+        new Date(a.fechaCreacion).getTime(),
     );
   } catch (error: any) {
     console.error("❌ Error al obtener tareas asignadas:", error);
@@ -84,24 +85,26 @@ export async function obtenerTareasAsignadas(
  */
 export async function obtenerTareasCreadasPor(
   uid: string,
-  empresaId: string
+  empresaId: string,
 ): Promise<Tarea[]> {
   try {
     const q = query(
       collection(db, "Tareas"),
       where("empresaId", "==", empresaId),
-      where("creadaPor", "==", uid)
+      where("creadaPor", "==", uid),
     );
-    
+
     const snapshot = await getDocs(q);
     const tareas = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     })) as Tarea[];
-    
+
     // Ordenar en el cliente
-    return tareas.sort((a, b) => 
-      new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
+    return tareas.sort(
+      (a, b) =>
+        new Date(b.fechaCreacion).getTime() -
+        new Date(a.fechaCreacion).getTime(),
     );
   } catch (error: any) {
     console.error("❌ Error al obtener tareas creadas:", error);
@@ -111,13 +114,12 @@ export async function obtenerTareasCreadasPor(
   }
 }
 
-
 /**
  * Editar una tarea existente
  */
 export async function editarTarea(
   tareaId: string,
-  datos: Partial<Tarea>
+  datos: Partial<Tarea>,
 ): Promise<void> {
   try {
     const tareaRef = doc(db, "Tareas", tareaId);
@@ -144,46 +146,49 @@ export async function eliminarTarea(tareaId: string): Promise<void> {
 
 export async function obtenerTareasDepartamento(
   empresaId: string,
-  nombreDepartamento: string
+  nombreDepartamento: string,
 ): Promise<Tarea[]> {
   try {
     // Primero obtenemos todas las tareas de la empresa
     const q = query(
       collection(db, "Tareas"),
-      where("empresaId", "==", empresaId)
+      where("empresaId", "==", empresaId),
     );
-    
+
     const snapshot = await getDocs(q);
     const tareas = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     })) as Tarea[];
-    
+
     // Filtrar tareas donde al menos un usuario asignado es del departamento
     // Para esto necesitamos obtener los usuarios del departamento
     const usuariosQuery = query(
       collection(db, "Usuarios"),
       where("empresaId", "==", empresaId),
-      where("nombreDepartamento", "==", nombreDepartamento)
+      where("nombreDepartamento", "==", nombreDepartamento),
     );
-    
+
     const usuariosSnap = await getDocs(usuariosQuery);
-    const uidsDelDepto = usuariosSnap.docs.map(doc => doc.id);
-    
+    const uidsDelDepto = usuariosSnap.docs.map((doc) => doc.id);
+
     // Filtrar tareas donde el creador o algún asignado pertenece al departamento
-    const tareasDepartamento = tareas.filter(tarea => {
+    const tareasDepartamento = tareas.filter((tarea) => {
       // Incluir si el creador es del departamento
       if (uidsDelDepto.includes(tarea.creadaPor)) return true;
-      
+
       // Incluir si algún asignado es del departamento
-      if (tarea.asignadoA.some(uid => uidsDelDepto.includes(uid))) return true;
-      
+      if (tarea.asignadoA.some((uid) => uidsDelDepto.includes(uid)))
+        return true;
+
       return false;
     });
-    
+
     // Ordenar por fecha
-    return tareasDepartamento.sort((a, b) => 
-      new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
+    return tareasDepartamento.sort(
+      (a, b) =>
+        new Date(b.fechaCreacion).getTime() -
+        new Date(a.fechaCreacion).getTime(),
     );
   } catch (error: any) {
     console.error("❌ Error al obtener tareas de departamento:", error);
@@ -197,51 +202,60 @@ export async function obtenerTareasDepartamento(
 export async function obtenerTareasAsignadasDepartamento(
   uid: string,
   empresaId: string,
-  nombreDepartamento: string
+  nombreDepartamento: string,
 ): Promise<Tarea[]> {
   try {
     const q = query(
       collection(db, "Tareas"),
       where("empresaId", "==", empresaId),
-      where("asignadoA", "array-contains", uid)
+      where("asignadoA", "array-contains", uid),
     );
-    
+
     const snapshot = await getDocs(q);
     const tareas = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     })) as Tarea[];
-    
+
     // Obtener usuarios del departamento para filtrar
     const usuariosQuery = query(
       collection(db, "Usuarios"),
       where("empresaId", "==", empresaId),
-      where("nombreDepartamento", "==", nombreDepartamento)
+      where("nombreDepartamento", "==", nombreDepartamento),
     );
-    
+
     const usuariosSnap = await getDocs(usuariosQuery);
-    const uidsDelDepto = usuariosSnap.docs.map(doc => doc.id);
-    
+    const uidsDelDepto = usuariosSnap.docs.map((doc) => doc.id);
+
     // Filtrar tareas relacionadas con el departamento
-    const tareasDepartamento = tareas.filter(tarea => {
+    const tareasDepartamento = tareas.filter((tarea) => {
       // Incluir si el creador es del departamento
       if (uidsDelDepto.includes(tarea.creadaPor)) return true;
-      
+
       // Incluir si algún asignado adicional es del departamento
-      if (tarea.asignadoA.some(uidAsignado => uidsDelDepto.includes(uidAsignado))) return true;
-      
+      if (
+        tarea.asignadoA.some((uidAsignado) =>
+          uidsDelDepto.includes(uidAsignado),
+        )
+      )
+        return true;
+
       return false;
     });
-    
-    return tareasDepartamento.sort((a, b) => 
-      new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
+
+    return tareasDepartamento.sort(
+      (a, b) =>
+        new Date(b.fechaCreacion).getTime() -
+        new Date(a.fechaCreacion).getTime(),
     );
   } catch (error: any) {
-    console.error("❌ Error al obtener tareas asignadas de departamento:", error);
+    console.error(
+      "❌ Error al obtener tareas asignadas de departamento:",
+      error,
+    );
     throw error;
   }
 }
-
 
 /**
  * Crear una nueva tarea (con soporte offline)
@@ -253,7 +267,7 @@ export async function crearTarea(
   empresaId: string,
   empresaNombre: string,
   nombresAsignados: string[],
-  rolCreador?: string
+  rolCreador?: string,
 ): Promise<string> {
   // Verificar conexión
   const state = await NetInfo.fetch();
@@ -264,30 +278,30 @@ export async function crearTarea(
     descripcion: formData.descripcion,
     prioridad: formData.prioridad,
     estado: "Pendiente" as EstadoTarea,
-    
+
     fechaVencimiento: formData.fechaVencimiento?.toISOString() || null,
-    
+
     creadaPor,
     nombreCreador,
     asignadoA: formData.asignadoA,
     nombresAsignados,
-    
+
     empresaId,
     empresaNombre,
-    
+
     etiquetas: formData.etiquetas || [],
     comentarios: [],
 
-  tipoAsignacion: formData.tipoAsignacion || "usuarios",
-  departamentoAsignado: formData.departamentoAsignado || null,
+    tipoAsignacion: formData.tipoAsignacion || "usuarios",
+    departamentoAsignado: formData.departamentoAsignado || null,
   };
 
   if (!isOnline) {
     // Modo offline - agregar a cola
     const offlineId = await offlineService.addOperation(
-      'crear_tarea',
+      "crear_tarea",
       tareaData,
-      creadaPor
+      creadaPor,
     );
 
     console.log(" Tarea guardada offline:", offlineId);
@@ -296,7 +310,6 @@ export async function crearTarea(
 
   // Modo online - guardar directamente
   try {
-
     const docRef = await addDoc(collection(db, "Tareas"), {
       ...tareaData,
       fechaCreacion: new Date().toISOString(),
@@ -306,11 +319,13 @@ export async function crearTarea(
     return docRef.id;
   } catch (error: any) {
     console.error(" Error al crear tarea:", error);
-    
+
     if (error.code === "permission-denied") {
-      throw new Error("No tienes permisos para asignar esta tarea a los usuarios seleccionados");
+      throw new Error(
+        "No tienes permisos para asignar esta tarea a los usuarios seleccionados",
+      );
     }
-    
+
     throw error;
   }
 }
@@ -320,14 +335,14 @@ export async function crearTarea(
  */
 export async function actualizarEstadoTarea(
   tareaId: string,
-  nuevoEstado: EstadoTarea
+  nuevoEstado: EstadoTarea,
 ): Promise<void> {
   // Verificar conexión
   const state = await NetInfo.fetch();
   const isOnline = state.isConnected ?? false;
 
   const updateData: any = { estado: nuevoEstado };
-  
+
   if (nuevoEstado === "Completada") {
     updateData.fechaCompletada = new Date().toISOString();
   }
@@ -335,9 +350,9 @@ export async function actualizarEstadoTarea(
   if (!isOnline) {
     // Modo offline
     await offlineService.addOperation(
-      'actualizar_estado_tarea',
+      "actualizar_estado_tarea",
       { tareaId, estado: nuevoEstado },
-      'current_user'
+      "current_user",
     );
     console.log(" Actualización de estado guardada offline");
     return;
@@ -363,19 +378,19 @@ export async function agregarComentario(
     texto: string;
     autorUid: string;
     autorNombre: string;
-  }
+  },
 ): Promise<void> {
   try {
     const tareaRef = doc(db, "Tareas", tareaId);
     const tareaDoc = await getDoc(tareaRef);
-    
+
     if (!tareaDoc.exists()) {
       throw new Error("Tarea no encontrada");
     }
-    
+
     const tareaData = tareaDoc.data();
     const comentarios = tareaData.comentarios || [];
-    
+
     comentarios.push({
       id: Date.now().toString(),
       texto: comentario.texto,
@@ -390,14 +405,14 @@ export async function agregarComentario(
 
     if (!isOnline) {
       await offlineService.addOperation(
-        'agregar_comentario_tarea',
+        "agregar_comentario_tarea",
         { tareaId, comentarios },
-        comentario.autorUid
+        comentario.autorUid,
       );
       console.log(" Comentario guardado offline");
       return;
     }
-    
+
     await updateDoc(tareaRef, { comentarios });
     console.log(" Comentario agregado");
   } catch (error) {
@@ -414,7 +429,7 @@ export async function agregarEnlaceAdjunto(
   tareaId: string,
   enlace: { nombre: string; url: string },
   subidoPor: string,
-  nombreSubidor: string
+  nombreSubidor: string,
 ): Promise<Adjunto> {
   const tareaRef = doc(db, "Tareas", tareaId);
   const tareaSnap = await getDoc(tareaRef);
@@ -444,7 +459,7 @@ export async function agregarEnlaceAdjunto(
  */
 export async function eliminarAdjunto(
   tareaId: string,
-  adjuntoId: string
+  adjuntoId: string,
 ): Promise<void> {
   const tareaRef = doc(db, "Tareas", tareaId);
   const tareaSnap = await getDoc(tareaRef);

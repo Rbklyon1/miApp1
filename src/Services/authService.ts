@@ -1,7 +1,10 @@
-import { sendPasswordResetEmail, signInWithEmailAndPassword } from "firebase/auth";
+import {
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+} from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "./firebaseConfig";
-import { loginOffline } from "./offlineAuthService";
+import { loginOffline } from "./sqlite/offlineAuthService";
 
 export type LoginUserFirestore = {
   uid: string;

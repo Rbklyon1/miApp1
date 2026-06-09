@@ -1,18 +1,18 @@
+import NetInfo from "@react-native-community/netinfo";
 import {
-  collection,
   addDoc,
-  query,
-  where,
-  getDocs,
-  updateDoc,
+  collection,
   deleteDoc,
   doc,
-  serverTimestamp,
   getDoc,
+  getDocs,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
 } from "firebase/firestore";
 import { db } from "./firebaseConfig";
-import { offlineService } from "./OfflineService";
-import NetInfo from '@react-native-community/netinfo';
+import { offlineService } from "./sqlite/OfflineService";
 
 export type TipoMuro = "general" | "departamento";
 
@@ -70,7 +70,7 @@ export const crearPublicacion = async (data: {
   if (!isOnline) {
     // Modo offline - agregar a cola
     const offlineId = await offlineService.addOperation(
-      'crear_publicacion',
+      "crear_publicacion",
       {
         contenido: data.contenido,
         empresaId: data.empresaId,
@@ -83,7 +83,7 @@ export const crearPublicacion = async (data: {
         comentarios: [],
         reacciones: [],
       },
-      data.creadaPor
+      data.creadaPor,
     );
 
     return offlineId;
@@ -114,15 +114,17 @@ export const crearPublicacion = async (data: {
 /**
  * Obtener publicaciones del muro general
  */
-export const obtenerMuroGeneral = async (empresaId: string): Promise<Publicacion[]> => {
+export const obtenerMuroGeneral = async (
+  empresaId: string,
+): Promise<Publicacion[]> => {
   try {
     const q = query(
       collection(db, "Publicaciones"),
       where("empresaId", "==", empresaId),
-      where("tipoMuro", "==", "general")
+      where("tipoMuro", "==", "general"),
     );
     const snap = await getDocs(q);
-    
+
     const publicaciones = snap.docs.map((d) => ({
       id: d.id,
       ...d.data(),
@@ -144,13 +146,13 @@ export const obtenerMuroGeneral = async (empresaId: string): Promise<Publicacion
  */
 export const obtenerMuroDepartamento = async (
   empresaId: string,
-  departamentoId: string
+  departamentoId: string,
 ): Promise<Publicacion[]> => {
   const q = query(
     collection(db, "Publicaciones"),
     where("empresaId", "==", empresaId),
     where("tipoMuro", "==", "departamento"),
-    where("departamentoId", "==", departamentoId), 
+    where("departamentoId", "==", departamentoId),
   );
 
   const snapshot = await getDocs(q);
@@ -170,7 +172,7 @@ export const obtenerMuroDepartamento = async (
  */
 export const editarPublicacion = async (
   postId: string,
-  contenido: string
+  contenido: string,
 ): Promise<void> => {
   const state = await NetInfo.fetch();
   const isOnline = state.isConnected ?? false;
@@ -178,9 +180,9 @@ export const editarPublicacion = async (
   if (!isOnline) {
     // Modo offline
     await offlineService.addOperation(
-      'editar_publicacion',
+      "editar_publicacion",
       { postId, contenido },
-      'current_user' // Deberías pasar el UID real
+      "current_user", // Deberías pasar el UID real
     );
     return;
   }
@@ -214,7 +216,7 @@ export const agregarReaccion = async (
   postId: string,
   uid: string,
   nombreUsuario: string,
-  tipo: "me_gusta" | "importante" | "celebrar"
+  tipo: "me_gusta" | "importante" | "celebrar",
 ): Promise<void> => {
   try {
     const postRef = doc(db, "Publicaciones", postId);
@@ -234,7 +236,7 @@ export const agregarReaccion = async (
         reacciones = reacciones.filter((r: Reaccion) => r.uid !== uid);
       } else {
         reacciones = reacciones.map((r: Reaccion) =>
-          r.uid === uid ? { ...r, tipo, fecha: new Date().toISOString() } : r
+          r.uid === uid ? { ...r, tipo, fecha: new Date().toISOString() } : r,
         );
       }
     } else {
@@ -251,9 +253,9 @@ export const agregarReaccion = async (
 
     if (!isOnline) {
       await offlineService.addOperation(
-        'agregar_reaccion',
+        "agregar_reaccion",
         { postId, reacciones },
-        uid
+        uid,
       );
       console.log("📴 Reacción guardada offline");
       return;
@@ -276,7 +278,7 @@ export const agregarComentario = async (
     texto: string;
     autorUid: string;
     autorNombre: string;
-  }
+  },
 ): Promise<void> => {
   try {
     const postRef = doc(db, "Publicaciones", postId);
@@ -310,7 +312,7 @@ export const agregarComentario = async (
  */
 export const eliminarComentario = async (
   postId: string,
-  comentarioId: string
+  comentarioId: string,
 ): Promise<void> => {
   try {
     const postRef = doc(db, "Publicaciones", postId);
@@ -322,7 +324,7 @@ export const eliminarComentario = async (
 
     const postData = postDoc.data();
     const comentarios = (postData.comentarios || []).filter(
-      (c: Comentario) => c.id !== comentarioId
+      (c: Comentario) => c.id !== comentarioId,
     );
 
     await updateDoc(postRef, { comentarios });

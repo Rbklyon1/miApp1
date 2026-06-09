@@ -1,0 +1,60 @@
+// services/agendaPersonalService.ts
+import { randomUUID } from 'expo-crypto';
+import db from './database';
+
+export interface AgendaItem {
+  id: string;
+  titulo: string;
+  descripcion?: string;
+  fecha: string;
+  hora_inicio?: string;
+  hora_fin?: string;
+  usuario_id: string;
+  creado_en: string;
+  synced: number;
+}
+
+export const getAgenda = (usuario_id: string): AgendaItem[] => {
+  return db.getAllSync<AgendaItem>(
+    'SELECT * FROM agenda_personal WHERE usuario_id = ? ORDER BY fecha ASC',
+    [usuario_id]
+  );
+};
+
+export const getAgendaPorFecha = (usuario_id: string, fecha: string): AgendaItem[] => {
+  return db.getAllSync<AgendaItem>(
+    'SELECT * FROM agenda_personal WHERE usuario_id = ? AND fecha = ? ORDER BY hora_inicio ASC',
+    [usuario_id, fecha]
+  );
+};
+
+export const createAgendaItem = (data: Omit<AgendaItem, 'id' | 'creado_en' | 'synced'>): AgendaItem => {
+  const item: AgendaItem = {
+    ...data,
+    id: randomUUID(),
+    creado_en: new Date().toISOString(),
+    synced: 0,
+  };
+
+  db.runSync(
+    `INSERT INTO agenda_personal (id, titulo, descripcion, fecha, hora_inicio, hora_fin, usuario_id, creado_en, synced)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+    [item.id, item.titulo, item.descripcion ?? null, item.fecha,
+     item.hora_inicio ?? null, item.hora_fin ?? null, item.usuario_id, item.creado_en]
+  );
+
+  db.runSync(
+    `INSERT INTO sync_queue (tabla, operacion, payload) VALUES (?, ?, ?)`,
+    ['agenda_personal', 'CREATE', JSON.stringify(item)]
+  );
+
+  return item;
+};
+
+export const deleteAgendaItem = (id: string): void => {
+  db.runSync('DELETE FROM agenda_personal WHERE id = ?', [id]);
+  db.runSync(
+    `INSERT INTO sync_queue (tabla, operacion, payload) VALUES (?, ?, ?)`,
+    ['agenda_personal', 'DELETE', JSON.stringify({ id })]
+  );
+};

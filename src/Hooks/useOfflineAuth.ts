@@ -4,7 +4,7 @@ import {
   hayUsuariosPendientes,
   obtenerCantidadPendientes,
   sincronizarUsuariosPendientes,
-} from "../Services/offlineAuthService";
+} from "../Services/sqlite/offlineAuthService";
 import { useOffline } from "./useOffline";
 
 export const useOfflineAuth = () => {
@@ -46,7 +46,7 @@ export const useOfflineAuth = () => {
               resultado.fallidos > 0
                 ? `\n${resultado.fallidos} no pudieron sincronizarse.`
                 : ""
-            }`
+            }`,
           );
         }
 

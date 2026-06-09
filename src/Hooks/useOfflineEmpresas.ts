@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Alert } from "react-native";
 import {
@@ -7,7 +6,7 @@ import {
   obtenerCantidadEmpresasPendientes,
   sincronizarDepartamentosPendientes,
   sincronizarEmpresasPendientes,
-} from "../Services/offlineEmpresaService";
+} from "../Services/sqlite/offlineEmpresaService";
 import { useOffline } from "./useOffline";
 
 export const useOfflineEmpresas = () => {
@@ -39,7 +38,7 @@ export const useOfflineEmpresas = () => {
 
       if (hayPendientes) {
         console.log(
-          "🔄 Iniciando sincronización de empresas y departamentos..."
+          "🔄 Iniciando sincronización de empresas y departamentos...",
         );
         setIsSyncingEmpresas(true);
 
@@ -58,7 +57,7 @@ export const useOfflineEmpresas = () => {
               totalFallidos > 0
                 ? `\n${totalFallidos} no pudieron sincronizarse.`
                 : ""
-            }`
+            }`,
           );
         }
 

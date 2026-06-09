@@ -1,7 +1,7 @@
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebaseConfig";
-import { guardarUsuarioOffline } from "./offlineAuthService";
+import { guardarUsuarioOffline } from "./sqlite/offlineAuthService";
 
 export async function registerOnline(params: {
   nombre: string;
@@ -13,7 +13,7 @@ export async function registerOnline(params: {
   const userCredential = await createUserWithEmailAndPassword(
     auth,
     email.trim(),
-    password
+    password,
   );
 
   const uid = userCredential.user.uid;
@@ -46,7 +46,7 @@ export async function registerOffline(params: {
   const offlineUser = await guardarUsuarioOffline(
     email.trim(),
     password,
-    nombre.trim()
+    nombre.trim(),
   );
 
   return {

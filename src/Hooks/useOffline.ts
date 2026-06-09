@@ -1,6 +1,9 @@
 import NetInfo from "@react-native-community/netinfo";
 import { useEffect, useState } from "react";
-import { OfflineOperation, offlineService } from "../Services/OfflineService";
+import {
+  OfflineOperation,
+  offlineService,
+} from "../Services/sqlite/OfflineService";
 
 export const useOffline = () => {
   const [isOnline, setIsOnline] = useState(true);
