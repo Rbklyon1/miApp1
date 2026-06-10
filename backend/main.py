@@ -15,7 +15,7 @@ import json
 # CONFIG
 # ─────────────────────────────────────────────
 
-app = FastAPI(title="WorkStation API", version="2.0.0")
+app = FastAPI(title="workstation API", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
